@@ -42,7 +42,7 @@ uv run instax-filter ./photo.jpg --no-frame
 uv run instax-filter ./photo.jpg --no-vignette --seed 42
 ```
 
-模拟拍立得内置闪光灯，让画面中央偏上的主体明显变亮并产生过曝感。单写 `--flash` 时强度为 `1.0`：
+默认使用 `0.1` 的轻微拍立得直闪。单写 `--flash` 时使用标准强度 `1.0`，让画面中央偏上的主体明显变亮并产生过曝感：
 
 ```bash
 uv run instax-filter ./photo.jpg --flash
@@ -52,6 +52,12 @@ uv run instax-filter ./photo.jpg --flash
 
 ```bash
 uv run instax-filter ./photo.jpg --flash 1.6
+```
+
+完全关闭闪光灯：
+
+```bash
+uv run instax-filter ./photo.jpg --flash 0
 ```
 
 ### 参数
@@ -65,7 +71,7 @@ uv run instax-filter ./photo.jpg --flash 1.6
 | `--frame` | 开启 | 裁切并输出 Instax Mini 尺寸相纸 |
 | `--no-frame` | — | 保持原图尺寸，不裁切、不添加相纸白边 |
 | `--no-vignette` | — | 关闭轻微暗角 |
-| `--flash [INTENSITY]` | `0`（关闭） | 模拟机顶直闪，范围 `0–2`；省略强度值时使用 `1.0` |
+| `--flash [INTENSITY]` | `0.1` | 模拟机顶直闪，范围 `0–2`；单写 `--flash` 时使用 `1.0`，设为 `0` 可关闭 |
 | `--seed INTEGER` | 根据输入路径生成 | 固定颗粒和相纸纹理的随机种子 |
 | `--quality INTEGER` | `95` | JPEG、WebP、HEIC 输出质量，范围 `1–100` |
 | `-h`、`--help` | — | 显示命令帮助 |

@@ -25,7 +25,7 @@ class InstaxFilterTests(unittest.TestCase):
         args = build_parser().parse_args(["photo.jpg"])
         self.assertEqual(args.strength, 1.5)
         self.assertEqual(args.grain, 2.0)
-        self.assertEqual(args.flash, 0.0)
+        self.assertEqual(args.flash, 0.1)
         self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash"]).flash, 1.0)
         self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash", "1.7"]).flash, 1.7)
 

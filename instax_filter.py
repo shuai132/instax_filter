@@ -89,7 +89,7 @@ def apply_instax_look(
     strength: float = 1.5,
     grain: float = 2.0,
     vignette: bool = True,
-    flash: float = 0.0,
+    flash: float = 0.1,
     seed: int = 0,
 ) -> Image.Image:
     """Return an RGB image with a natural Instax-inspired film rendering."""
@@ -281,10 +281,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--flash",
         nargs="?",
         const=1.0,
-        default=0.0,
+        default=0.1,
         type=float,
         metavar="INTENSITY",
-        help="模拟拍立得直闪，可选强度 0–2（省略数值时为 1.0）",
+        help="模拟拍立得直闪，可选强度 0–2（默认 0.1，省略数值时为 1.0）",
     )
     parser.add_argument("--seed", type=int, help="颗粒与相纸纹理随机种子（默认由文件路径稳定生成）")
     parser.add_argument("--quality", type=int, default=95, help="JPEG/WebP/HEIC 质量，1–100（默认 95）")
