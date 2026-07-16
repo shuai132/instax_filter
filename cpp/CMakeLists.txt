@@ -7,9 +7,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc imgcodecs objdetect)
 
-add_executable(instax-filter-cpp src/main.cpp)
+add_executable(instax-filter-cpp
+    src/main.cpp
+    src/mode_config.cpp
+)
 target_link_libraries(instax-filter-cpp PRIVATE ${OpenCV_LIBS})
-target_include_directories(instax-filter-cpp PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_include_directories(instax-filter-cpp PRIVATE include ${OpenCV_INCLUDE_DIRS})
 target_compile_options(instax-filter-cpp PRIVATE
     $<$<CXX_COMPILER_ID:AppleClang,Clang,GNU>:-Wall;-Wextra;-Wpedantic>
 )
