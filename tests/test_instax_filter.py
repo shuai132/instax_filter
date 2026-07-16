@@ -1,6 +1,9 @@
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 import numpy as np
 from PIL import Image
@@ -14,6 +17,7 @@ from instax_filter import (
     apply_instax_look,
     build_parser,
     fit_instax_image,
+    main,
 )
 
 
@@ -32,7 +36,7 @@ class InstaxFilterTests(unittest.TestCase):
 
     def test_cli_defaults_use_restrained_instax_mode(self) -> None:
         args = build_parser().parse_args(["photo.jpg"])
-        self.assertEqual(args.mode, "instax")
+        self.assertEqual(args.mode, ["instax"])
         self.assertIsNone(args.strength)
         self.assertIsNone(args.grain)
         self.assertIsNone(args.flash)
@@ -41,6 +45,45 @@ class InstaxFilterTests(unittest.TestCase):
         self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash", "1.7"]).flash, 1.7)
         self.assertFalse(args.debug)
         self.assertTrue(build_parser().parse_args(["photo.jpg", "--debug"]).debug)
+
+    def test_cli_accepts_multiple_modes(self) -> None:
+        args = build_parser().parse_args(["photo.jpg", "--mode", "ccd", "noir", "night"])
+        self.assertEqual(args.mode, ["ccd", "noir", "night"])
+
+    def test_help_describes_every_mode(self) -> None:
+        help_text = build_parser().format_help()
+        for mode, description in {
+            "instax": "拍立得风格",
+            "ccd": "2000 年代 CCD 卡片机",
+            "lofi": "重度 Lo-fi",
+            "disposable": "一次性胶片机",
+            "chrome": "高饱和反转片",
+            "dream": "低反差梦境",
+            "noir": "高反差黑白",
+            "night": "霓虹夜拍",
+        }.items():
+            with self.subTest(mode=mode):
+                self.assertIn(f"{mode:<10} {description}", help_text)
+
+    def test_cli_generates_one_output_per_mode(self) -> None:
+        with TemporaryDirectory() as directory:
+            input_path = Path(directory) / "photo.png"
+            self.image.save(input_path)
+            argv = ["instax-filter", str(input_path), "--mode", "ccd", "noir", "--seed", "17"]
+            with patch("sys.argv", argv), redirect_stdout(StringIO()) as stdout:
+                main()
+            self.assertTrue((input_path.parent / "photo_ccd.png").is_file())
+            self.assertTrue((input_path.parent / "photo_noir.png").is_file())
+            self.assertIn("photo_ccd.png", stdout.getvalue())
+            self.assertIn("photo_noir.png", stdout.getvalue())
+
+    def test_cli_rejects_output_path_with_multiple_modes(self) -> None:
+        with TemporaryDirectory() as directory:
+            input_path = Path(directory) / "photo.png"
+            self.image.save(input_path)
+            argv = ["instax-filter", str(input_path), "--mode", "ccd", "noir", "-o", str(Path(directory) / "out.png")]
+            with patch("sys.argv", argv), self.assertRaisesRegex(SystemExit, "多个 --mode"):
+                main()
 
     def test_ccd_mode_is_crisper_than_instax(self) -> None:
         pixels = np.zeros((160, 160, 3), dtype=np.uint8)

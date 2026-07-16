@@ -351,6 +351,17 @@ MODE_CONFIGS = {
     ),
 }
 
+MODE_DESCRIPTIONS = {
+    "instax": "拍立得风格：适度反差、轻微软化、暖高光和相纸白边",
+    "ccd": "2000 年代 CCD 卡片机：清晰边缘、硬直闪和暗部彩噪",
+    "lofi": "重度 Lo-fi：重柔焦、粗颗粒、强辉光和青冷阴影",
+    "disposable": "一次性胶片机：暖色硬直闪、绿色暗部和明显失光",
+    "chrome": "高饱和反转片：深黑、浓郁蓝绿、暖高光和细颗粒",
+    "dream": "低反差梦境：抬高黑位、降低饱和度和粉紫柔光",
+    "noir": "高反差黑白：深黑、粗银盐颗粒、锐利边缘和强暗角",
+    "night": "霓虹夜拍：冷蓝硬闪、洋红高光、深背景和暗部彩噪",
+}
+
 
 def _mode_config(mode: str) -> ModeConfig:
     try:
@@ -798,14 +809,22 @@ def _save(image: Image.Image, output_path: Path, *, quality: int) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="模拟多种胶片、拍立得和数码相机成像")
+    mode_help = "选择一个或多个成像预设（默认 instax）：\n" + "\n".join(
+        f"  {mode:<10} {description}" for mode, description in MODE_DESCRIPTIONS.items()
+    )
+    parser = argparse.ArgumentParser(
+        description="模拟多种胶片、拍立得和数码相机成像",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
     parser.add_argument("input", type=Path, help="本地图片路径")
     parser.add_argument("-o", "--output", type=Path, help="输出路径（默认：原目录下 *_{mode}）")
     parser.add_argument(
         "--mode",
         choices=tuple(MODE_CONFIGS),
-        default="instax",
-        help="选择成像预设（默认 instax；各模式说明见 README）",
+        nargs="+",
+        default=["instax"],
+        metavar="MODE",
+        help=mode_help,
     )
     parser.add_argument("--strength", type=float, help="成像特征强度，0–1.5（默认值按模式）")
     parser.add_argument("--grain", type=float, help="颗粒或传感器噪声，0–2（默认值按模式）")
@@ -830,41 +849,51 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
-    mode_config = _mode_config(args.mode)
-    strength = args.strength if args.strength is not None else mode_config.default_strength
-    grain = args.grain if args.grain is not None else mode_config.default_grain
-    flash = args.flash if args.flash is not None else mode_config.default_flash
-    frame = args.frame if args.frame is not None else mode_config.default_frame
+    modes = args.mode
     input_path = args.input.expanduser().resolve()
     if not input_path.is_file():
         raise SystemExit(f"找不到输入文件：{input_path}")
     if input_path.suffix.lower() not in SUPPORTED_SUFFIXES:
         raise SystemExit(f"不支持的输入格式：{input_path.suffix}")
-    if not 0.0 <= strength <= 1.5:
+    if args.strength is not None and not 0.0 <= args.strength <= 1.5:
         raise SystemExit("--strength 必须在 0–1.5 之间")
-    if not 0.0 <= grain <= 2.0:
+    if args.grain is not None and not 0.0 <= args.grain <= 2.0:
         raise SystemExit("--grain 必须在 0–2 之间")
-    if not 0.0 <= flash <= 2.0:
+    if args.flash is not None and not 0.0 <= args.flash <= 2.0:
         raise SystemExit("--flash 强度必须在 0–2 之间")
     if not 1 <= args.quality <= 100:
         raise SystemExit("--quality 必须在 1–100 之间")
+    if args.output and len(modes) > 1:
+        raise SystemExit("同时使用多个 --mode 时不能指定 --output；输出文件将按模式自动命名")
 
-    output_path = (args.output.expanduser() if args.output else _default_output(input_path, args.mode)).resolve()
-    if output_path == input_path:
-        raise SystemExit("输出路径不能与输入文件相同，以免覆盖原图")
-    if output_path.suffix.lower() not in SUPPORTED_SUFFIXES:
-        raise SystemExit(f"不支持的输出格式：{output_path.suffix}")
-    if not output_path.parent.is_dir():
-        raise SystemExit(f"输出目录不存在：{output_path.parent}")
+    output_paths = [
+        (args.output.expanduser() if args.output else _default_output(input_path, mode)).resolve()
+        for mode in modes
+    ]
+    for output_path in output_paths:
+        if output_path == input_path:
+            raise SystemExit("输出路径不能与输入文件相同，以免覆盖原图")
+        if output_path.suffix.lower() not in SUPPORTED_SUFFIXES:
+            raise SystemExit(f"不支持的输出格式：{output_path.suffix}")
+        if not output_path.parent.is_dir():
+            raise SystemExit(f"输出目录不存在：{output_path.parent}")
 
     try:
         with Image.open(input_path) as opened:
-            image = ImageOps.exif_transpose(opened)
+            source = ImageOps.exif_transpose(opened)
+            source.load()
+        for mode, output_path in zip(modes, output_paths):
+            mode_config = _mode_config(mode)
+            strength = args.strength if args.strength is not None else mode_config.default_strength
+            grain = args.grain if args.grain is not None else mode_config.default_grain
+            flash = args.flash if args.flash is not None else mode_config.default_flash
+            frame = args.frame if args.frame is not None else mode_config.default_frame
+            image = source.copy()
             if frame:
                 image = fit_instax_image(image)
             result = apply_instax_look(
                 image,
-                mode=args.mode,
+                mode=mode,
                 strength=strength,
                 grain=grain,
                 vignette=not args.no_vignette,
@@ -872,13 +901,12 @@ def main() -> None:
                 debug=args.debug,
                 seed=args.seed if args.seed is not None else _seed_for(input_path),
             )
-        if frame:
-            result = add_instax_frame(result, seed=args.seed if args.seed is not None else _seed_for(input_path))
-        _save(result, output_path, quality=args.quality)
+            if frame:
+                result = add_instax_frame(result, seed=args.seed if args.seed is not None else _seed_for(input_path))
+            _save(result, output_path, quality=args.quality)
+            print(f"已输出：{output_path}")
     except (OSError, ValueError) as exc:
         raise SystemExit(f"处理失败：{exc}") from exc
-
-    print(f"已输出：{output_path}")
 
 
 if __name__ == "__main__":
