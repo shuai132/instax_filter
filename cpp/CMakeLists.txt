@@ -10,6 +10,7 @@ find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc imgcodecs objdetect)
 add_executable(instax-filter-cpp
     src/main.cpp
     src/mode_config.cpp
+    src/processing_engine.cpp
 )
 target_link_libraries(instax-filter-cpp PRIVATE ${OpenCV_LIBS})
 target_include_directories(instax-filter-cpp PRIVATE include ${OpenCV_INCLUDE_DIRS})
