@@ -6,6 +6,7 @@ import numpy as np
 from PIL import Image
 
 from instax_filter import (
+    MODE_CONFIGS,
     _build_flash_mask,
     _draw_debug_overlay,
     _save,
@@ -89,7 +90,7 @@ class InstaxFilterTests(unittest.TestCase):
         debugged = _draw_debug_overlay(
             image,
             [(240, 120, 100, 100)],
-            mode="ccd",
+            mode_config=MODE_CONFIGS["ccd"],
             strength=1.5,
             grain=2.0,
             flash=0.1,
