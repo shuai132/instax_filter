@@ -29,15 +29,32 @@ class InstaxFilterTests(unittest.TestCase):
         result = apply_instax_look(self.image, strength=0, grain=0)
         np.testing.assert_array_equal(np.asarray(result), np.asarray(self.image))
 
-    def test_cli_defaults_use_maximum_film_effect(self) -> None:
+    def test_cli_defaults_use_restrained_instax_mode(self) -> None:
         args = build_parser().parse_args(["photo.jpg"])
-        self.assertEqual(args.strength, 1.5)
-        self.assertEqual(args.grain, 2.0)
+        self.assertEqual(args.mode, "instax")
+        self.assertIsNone(args.strength)
+        self.assertIsNone(args.grain)
         self.assertEqual(args.flash, 0.1)
         self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash"]).flash, 1.0)
         self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash", "1.7"]).flash, 1.7)
         self.assertFalse(args.debug)
         self.assertTrue(build_parser().parse_args(["photo.jpg", "--debug"]).debug)
+
+    def test_ccd_mode_remains_softer_than_instax(self) -> None:
+        pixels = np.zeros((160, 160, 3), dtype=np.uint8)
+        pixels[:, 80:] = 255
+        edge = Image.fromarray(pixels, "RGB")
+        instax = np.asarray(
+            apply_instax_look(edge, mode="instax", strength=1.5, grain=0, vignette=False, flash=0),
+            dtype=np.float32,
+        )
+        ccd = np.asarray(
+            apply_instax_look(edge, mode="ccd", strength=1.5, grain=0, vignette=False, flash=0),
+            dtype=np.float32,
+        )
+        instax_edge_contrast = instax[:, 80].mean() - instax[:, 79].mean()
+        ccd_edge_contrast = ccd[:, 80].mean() - ccd[:, 79].mean()
+        self.assertGreater(instax_edge_contrast, ccd_edge_contrast)
 
     def test_flash_brightens_center_more_than_edges(self) -> None:
         midgray = Image.new("RGB", (120, 160), (90, 90, 90))
@@ -72,6 +89,7 @@ class InstaxFilterTests(unittest.TestCase):
         debugged = _draw_debug_overlay(
             image,
             [(240, 120, 100, 100)],
+            mode="ccd",
             strength=1.5,
             grain=2.0,
             flash=0.1,

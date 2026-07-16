@@ -19,6 +19,10 @@ register_heif_opener()
 SUPPORTED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".heic", ".heif"}
 INSTAX_PAPER_PORTRAIT = (1080, 1720)
 INSTAX_IMAGE_PORTRAIT = (920, 1240)
+MODE_DEFAULTS = {
+    "instax": (1.0, 0.8),
+    "ccd": (1.5, 2.0),
+}
 
 
 def _smoothstep(edge0: float, edge1: float, value: np.ndarray) -> np.ndarray:
@@ -178,6 +182,7 @@ def _draw_debug_overlay(
     image: Image.Image,
     faces: list[tuple[int, int, int, int]],
     *,
+    mode: str,
     strength: float,
     grain: float,
     flash: float,
@@ -210,12 +215,13 @@ def _draw_debug_overlay(
 
     lines = [
         "INSTAX FILTER / DEBUG",
+        f"MODE        {mode.upper()}",
         f"FACES       {len(faces)}",
         f"STRENGTH    {strength:.2f}",
         f"GRAIN       {grain:.2f}",
         f"FLASH       {flash:.2f}",
         f"VIGNETTE    {'ON' if vignette else 'OFF'}",
-        f"SOFTEN      {min(strength * 52, 78):.0f}%",
+        f"SOFTEN      {min(strength * (52 if mode == 'ccd' else 18), 78):.0f}%",
         "SHADOW      CYAN + GREEN",
         "HIGHLIGHT   CREAM + WARM",
         f"SEED        {seed}",
@@ -264,14 +270,17 @@ def _resize_for_processing(image: Image.Image, max_side: int = 3600) -> tuple[Im
 def apply_instax_look(
     image: Image.Image,
     *,
-    strength: float = 1.5,
-    grain: float = 2.0,
+    mode: str = "instax",
+    strength: float = 1.0,
+    grain: float = 0.8,
     vignette: bool = True,
     flash: float = 0.1,
     debug: bool = False,
     seed: int = 0,
 ) -> Image.Image:
     """Return an RGB image with a natural Instax-inspired film rendering."""
+    if mode not in MODE_DEFAULTS:
+        raise ValueError(f"不支持的模式：{mode}")
     original_size = image.size
     alpha = image.getchannel("A") if "A" in image.getbands() else None
     work, scale = _resize_for_processing(image.convert("RGB"))
@@ -322,22 +331,26 @@ def apply_instax_look(
     # Remove some brittle phone-camera microcontrast. The broad component mimics
     # the taking lens and Instax emulsion, while retaining enough edge definition.
     radius = max(work.size) / 850.0
+    soften_amount = 0.52 if mode == "ccd" else 0.18
+    local_detail_amount = 0.16 if mode == "ccd" else 0.05
     softened = _blur(rgb, max(1.15, radius * 1.55))
-    rgb += (softened - rgb) * 0.52 * strength
+    rgb += (softened - rgb) * soften_amount * strength
 
     # Suppress broader local contrast too. This is what removes the brittle HDR
     # clarity of modern phone photos rather than merely blurring single pixels.
     broad = _blur(rgb, max(2.4, radius * 4.2))
     local_detail = rgb - broad
-    rgb -= local_detail * 0.16 * strength
+    rgb -= local_detail * local_detail_amount * strength
 
     # Stronger optical bloom and a red-biased halo around only the brightest areas.
     bright = np.clip((_luminance(rgb) - 0.72) / 0.28, 0.0, 1.0) ** 2
     glow_source = rgb * bright
     glow = _blur(glow_source, max(1.2, radius * 2.8))
-    rgb = 1.0 - (1.0 - rgb) * (1.0 - glow * 0.17 * strength)
+    glow_amount = 0.17 if mode == "ccd" else 0.10
+    halo_amount = 1.0 if mode == "ccd" else 0.55
+    rgb = 1.0 - (1.0 - rgb) * (1.0 - glow * glow_amount * strength)
     halo = _blur(glow_source, max(2.0, radius * 5.5))
-    rgb += halo * np.array([0.065, 0.025, 0.006]) * strength
+    rgb += halo * np.array([0.065, 0.025, 0.006]) * strength * halo_amount
 
     height, width = rgb.shape[:2]
     yy, xx = np.mgrid[-1:1:complex(height), -1:1:complex(width)]
@@ -393,6 +406,7 @@ def apply_instax_look(
         result = _draw_debug_overlay(
             result,
             debug_faces,
+            mode=mode,
             strength=strength,
             grain=grain,
             flash=flash,
@@ -462,11 +476,17 @@ def _save(image: Image.Image, output_path: Path, *, quality: int) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="给照片添加柔焦、颗粒明显的富士拍立得胶片质感")
+    parser = argparse.ArgumentParser(description="给照片添加富士拍立得或 CCD 柔焦质感")
     parser.add_argument("input", type=Path, help="本地图片路径")
     parser.add_argument("-o", "--output", type=Path, help="输出路径（默认：原目录下 *_instax）")
-    parser.add_argument("--strength", type=float, default=1.5, help="调色强度，0–1.5（默认 1.5）")
-    parser.add_argument("--grain", type=float, default=2.0, help="颗粒强度，0–2（默认 2.0）")
+    parser.add_argument(
+        "--mode",
+        choices=tuple(MODE_DEFAULTS),
+        default="instax",
+        help="成像模式：instax 清晰拍立得，ccd 为原有重柔焦效果（默认 instax）",
+    )
+    parser.add_argument("--strength", type=float, help="调色强度，0–1.5（默认：instax 1.0，ccd 1.5）")
+    parser.add_argument("--grain", type=float, help="颗粒强度，0–2（默认：instax 0.8，ccd 2.0）")
     frame_group = parser.add_mutually_exclusive_group()
     frame_group.add_argument("--frame", dest="frame", action="store_true", default=True, help="输出 Instax Mini 尺寸相纸（默认）")
     frame_group.add_argument("--no-frame", dest="frame", action="store_false", help="不裁切、不添加相纸白边")
@@ -488,14 +508,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
+    default_strength, default_grain = MODE_DEFAULTS[args.mode]
+    strength = args.strength if args.strength is not None else default_strength
+    grain = args.grain if args.grain is not None else default_grain
     input_path = args.input.expanduser().resolve()
     if not input_path.is_file():
         raise SystemExit(f"找不到输入文件：{input_path}")
     if input_path.suffix.lower() not in SUPPORTED_SUFFIXES:
         raise SystemExit(f"不支持的输入格式：{input_path.suffix}")
-    if not 0.0 <= args.strength <= 1.5:
+    if not 0.0 <= strength <= 1.5:
         raise SystemExit("--strength 必须在 0–1.5 之间")
-    if not 0.0 <= args.grain <= 2.0:
+    if not 0.0 <= grain <= 2.0:
         raise SystemExit("--grain 必须在 0–2 之间")
     if not 0.0 <= args.flash <= 2.0:
         raise SystemExit("--flash 强度必须在 0–2 之间")
@@ -517,8 +540,9 @@ def main() -> None:
                 image = fit_instax_image(image)
             result = apply_instax_look(
                 image,
-                strength=args.strength,
-                grain=args.grain,
+                mode=args.mode,
+                strength=strength,
+                grain=grain,
                 vignette=not args.no_vignette,
                 flash=args.flash,
                 debug=args.debug,

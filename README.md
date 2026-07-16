@@ -1,6 +1,8 @@
 # Instax Filter
 
-用 Python 给照片添加辨识度明显、但不依赖漏光和划痕等复古特效的真实富士拍立得风格：明显降低数码清晰度、可见的乳剂颗粒、较窄的动态范围、奶油高光、青冷阴影、暖肤色、辉光、卤化效果和相纸密度变化。默认裁切成 Instax Mini 的 46×62 mm 成像比例，并输出为 54×86 mm 相纸比例；不会覆盖原图。
+用 Python 给照片添加辨识度明显、但不依赖漏光和划痕等复古特效的真实富士拍立得风格：保留主体轮廓，适度降低数码锐感，呈现较窄的动态范围、奶油高光、青冷阴影、暖肤色、颗粒、辉光和相纸密度变化。默认裁切成 Instax Mini 的 46×62 mm 成像比例，并输出为 54×86 mm 相纸比例；不会覆盖原图。
+
+默认的 `instax` 模式模拟较清晰的真实拍立得成像。原有的重柔焦、高颗粒效果保留为 `ccd` 模式。
 
 ## 使用
 
@@ -14,6 +16,12 @@ uv run instax-filter INPUT [-o OUTPUT] [选项]
 
 ```bash
 uv run instax-filter ./photo.jpg
+```
+
+使用原有的重柔焦效果：
+
+```bash
+uv run instax-filter ./photo.jpg --mode ccd
 ```
 
 输出到输入图片所在目录，文件名为 `photo_instax.jpg`。
@@ -74,8 +82,9 @@ uv run instax-filter ./photo.jpg --debug
 | --- | --- | --- |
 | `INPUT` | 必填 | 本地输入图片路径 |
 | `-o PATH`、`--output PATH` | 原目录下 `*_instax` | 指定输出路径；扩展名决定输出格式 |
-| `--strength FLOAT` | `1.5` | 调色和胶片质感强度，范围 `0–1.5` |
-| `--grain FLOAT` | `2.0` | 颗粒强度，范围 `0–2`；设为 `0` 可关闭颗粒 |
+| `--mode {instax,ccd}` | `instax` | `instax` 为较清晰的拍立得；`ccd` 保留原有重柔焦效果 |
+| `--strength FLOAT` | 按模式 | 调色和质感强度，范围 `0–1.5`；`instax` 默认 `1.0`，`ccd` 默认 `1.5` |
+| `--grain FLOAT` | 按模式 | 颗粒强度，范围 `0–2`；`instax` 默认 `0.8`，`ccd` 默认 `2.0` |
 | `--frame` | 开启 | 裁切并输出 Instax Mini 尺寸相纸 |
 | `--no-frame` | — | 保持原图尺寸，不裁切、不添加相纸白边 |
 | `--no-vignette` | — | 关闭轻微暗角 |
