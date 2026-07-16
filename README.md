@@ -10,12 +10,6 @@ uv run instax-filter ./photo.jpg
 
 输出到输入图片所在目录，文件名为 `photo_instax.jpg`。
 
-HEIC 照片可直接输入，默认仍在同目录输出 HEIC：
-
-```bash
-uv run instax-filter ./IMG_0001.HEIC
-```
-
 默认输出为拍立得尺寸：竖图 `1080×1720`，横图 `1720×1080`。如果只要滤镜、不需要裁切和相纸白边：
 
 ```bash
@@ -34,7 +28,15 @@ uv run instax-filter ./photo.jpg --strength 0.85 --grain 0.7
 uv run instax-filter --help
 ```
 
-支持 HEIC/HEIF、JPEG、PNG、WebP 和 TIFF，也可以通过 `-o` 在这些格式之间转换。大图会先在受控尺寸上处理，再以高质量缩放恢复原尺寸，避免 NumPy 中间数组占用过多内存。
+## 支持格式
+
+- HEIC/HEIF：`.heic`、`.heif`
+- JPEG：`.jpg`、`.jpeg`
+- PNG：`.png`
+- WebP：`.webp`
+- TIFF：`.tif`、`.tiff`
+
+输入和输出均支持以上格式，也可以通过 `-o` 转换格式。大图会先在受控尺寸上处理，再以高质量缩放恢复原尺寸，避免 NumPy 中间数组占用过多内存。
 
 运行测试：
 
