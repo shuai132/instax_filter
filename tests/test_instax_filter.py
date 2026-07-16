@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 import numpy as np
 from PIL import Image
 
-from instax_filter import _save, add_instax_frame, apply_instax_look, fit_instax_image
+from instax_filter import _save, add_instax_frame, apply_instax_look, build_parser, fit_instax_image
 
 
 class InstaxFilterTests(unittest.TestCase):
@@ -20,6 +20,11 @@ class InstaxFilterTests(unittest.TestCase):
     def test_neutral_settings_preserve_pixels(self) -> None:
         result = apply_instax_look(self.image, strength=0, grain=0)
         np.testing.assert_array_equal(np.asarray(result), np.asarray(self.image))
+
+    def test_cli_defaults_use_maximum_film_effect(self) -> None:
+        args = build_parser().parse_args(["photo.jpg"])
+        self.assertEqual(args.strength, 1.5)
+        self.assertEqual(args.grain, 2.0)
 
     def test_seed_makes_grain_repeatable(self) -> None:
         first = apply_instax_look(self.image, seed=123)

@@ -54,8 +54,8 @@ def _resize_for_processing(image: Image.Image, max_side: int = 3600) -> tuple[Im
 def apply_instax_look(
     image: Image.Image,
     *,
-    strength: float = 1.0,
-    grain: float = 1.0,
+    strength: float = 1.5,
+    grain: float = 2.0,
     vignette: bool = True,
     seed: int = 0,
 ) -> Image.Image:
@@ -235,8 +235,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="给照片添加柔焦、颗粒明显的富士拍立得胶片质感")
     parser.add_argument("input", type=Path, help="本地图片路径")
     parser.add_argument("-o", "--output", type=Path, help="输出路径（默认：原目录下 *_instax）")
-    parser.add_argument("--strength", type=float, default=1.0, help="调色强度，0–1.5（默认 1.0）")
-    parser.add_argument("--grain", type=float, default=1.0, help="颗粒强度，0–2（默认 1.0）")
+    parser.add_argument("--strength", type=float, default=1.5, help="调色强度，0–1.5（默认 1.5）")
+    parser.add_argument("--grain", type=float, default=2.0, help="颗粒强度，0–2（默认 2.0）")
     frame_group = parser.add_mutually_exclusive_group()
     frame_group.add_argument("--frame", dest="frame", action="store_true", default=True, help="输出 Instax Mini 尺寸相纸（默认）")
     frame_group.add_argument("--no-frame", dest="frame", action="store_false", help="不裁切、不添加相纸白边")

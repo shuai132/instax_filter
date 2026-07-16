@@ -48,8 +48,8 @@ uv run instax-filter ./photo.jpg --no-vignette --seed 42
 | --- | --- | --- |
 | `INPUT` | 必填 | 本地输入图片路径 |
 | `-o PATH`、`--output PATH` | 原目录下 `*_instax` | 指定输出路径；扩展名决定输出格式 |
-| `--strength FLOAT` | `1.0` | 调色和胶片质感强度，范围 `0–1.5` |
-| `--grain FLOAT` | `1.0` | 颗粒强度，范围 `0–2`；设为 `0` 可关闭颗粒 |
+| `--strength FLOAT` | `1.5` | 调色和胶片质感强度，范围 `0–1.5` |
+| `--grain FLOAT` | `2.0` | 颗粒强度，范围 `0–2`；设为 `0` 可关闭颗粒 |
 | `--frame` | 开启 | 裁切并输出 Instax Mini 尺寸相纸 |
 | `--no-frame` | — | 保持原图尺寸，不裁切、不添加相纸白边 |
 | `--no-vignette` | — | 关闭轻微暗角 |
