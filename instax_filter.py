@@ -9,7 +9,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from PIL import Image, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 from pillow_heif import register_heif_opener
 
 
@@ -133,10 +133,13 @@ def _build_flash_mask(
     return np.clip(combined, 0.0, 1.0)[..., None]
 
 
-def _apply_direct_flash(rgb: np.ndarray, intensity: float, face_source: np.ndarray) -> np.ndarray:
+def _apply_direct_flash(
+    rgb: np.ndarray,
+    intensity: float,
+    faces: list[tuple[int, int, int, int]],
+) -> np.ndarray:
     """Simulate the hard, center-weighted flash built into an instant camera."""
     height, width = rgb.shape[:2]
-    faces = _detect_faces(face_source)
     flash_mask = _build_flash_mask(height, width, faces)
 
     # A direct flash raises exposure most strongly around a centered foreground
@@ -162,6 +165,92 @@ def _apply_direct_flash(rgb: np.ndarray, intensity: float, face_source: np.ndarr
     return np.clip(rgb, 0.0, 1.0)
 
 
+def _box_overlap_area(
+    first: tuple[int, int, int, int],
+    second: tuple[int, int, int, int],
+) -> int:
+    ax, ay, aw, ah = first
+    bx, by, bw, bh = second
+    return max(0, min(ax + aw, bx + bw) - max(ax, bx)) * max(0, min(ay + ah, by + bh) - max(ay, by))
+
+
+def _draw_debug_overlay(
+    image: Image.Image,
+    faces: list[tuple[int, int, int, int]],
+    *,
+    strength: float,
+    grain: float,
+    flash: float,
+    vignette: bool,
+    seed: int,
+) -> Image.Image:
+    """Draw detected faces and the active film recipe onto the output image."""
+    original_mode = image.mode
+    base = image.convert("RGBA")
+    overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    width, height = image.size
+    font_size = max(14, round(min(width, height) / 52))
+    small_size = max(12, round(font_size * 0.82))
+    font = ImageFont.load_default(size=font_size)
+    small_font = ImageFont.load_default(size=small_size)
+    accent = (40, 255, 210, 255)
+    line_width = max(2, round(min(width, height) / 350))
+
+    for index, (face_x, face_y, face_w, face_h) in enumerate(faces, start=1):
+        box = (face_x, face_y, face_x + face_w, face_y + face_h)
+        draw.rectangle(box, outline=accent, width=line_width)
+        label = f"FACE {index}  {face_w}x{face_h}"
+        label_box = draw.textbbox((0, 0), label, font=small_font)
+        label_w = label_box[2] - label_box[0] + 10
+        label_h = label_box[3] - label_box[1] + 7
+        label_y = max(0, face_y - label_h)
+        draw.rectangle((face_x, label_y, face_x + label_w, label_y + label_h), fill=(4, 18, 20, 220))
+        draw.text((face_x + 5, label_y + 3), label, font=small_font, fill=accent)
+
+    lines = [
+        "INSTAX FILTER / DEBUG",
+        f"FACES       {len(faces)}",
+        f"STRENGTH    {strength:.2f}",
+        f"GRAIN       {grain:.2f}",
+        f"FLASH       {flash:.2f}",
+        f"VIGNETTE    {'ON' if vignette else 'OFF'}",
+        f"SOFTEN      {min(strength * 52, 78):.0f}%",
+        "SHADOW      CYAN + GREEN",
+        "HIGHLIGHT   CREAM + WARM",
+        f"SEED        {seed}",
+    ]
+    padding = max(10, round(font_size * 0.65))
+    gap = max(2, round(font_size * 0.22))
+    line_metrics = [draw.textbbox((0, 0), line, font=font) for line in lines]
+    panel_w = max(metric[2] - metric[0] for metric in line_metrics) + padding * 2
+    line_h = max(metric[3] - metric[1] for metric in line_metrics)
+    panel_h = line_h * len(lines) + gap * (len(lines) - 1) + padding * 2
+    margin = max(10, round(min(width, height) * 0.018))
+    left_panel = (margin, margin, panel_w, panel_h)
+    right_panel = (width - margin - panel_w, margin, panel_w, panel_h)
+    left_overlap = sum(_box_overlap_area(left_panel, face) for face in faces)
+    right_overlap = sum(_box_overlap_area(right_panel, face) for face in faces)
+    panel_x = left_panel[0] if left_overlap <= right_overlap else right_panel[0]
+    panel_y = margin
+
+    draw.rounded_rectangle(
+        (panel_x, panel_y, panel_x + panel_w, panel_y + panel_h),
+        radius=max(6, round(padding * 0.55)),
+        fill=(4, 12, 16, 205),
+        outline=(255, 255, 255, 75),
+        width=1,
+    )
+    text_y = panel_y + padding
+    for index, line in enumerate(lines):
+        color = accent if index == 0 else (238, 245, 242, 255)
+        draw.text((panel_x + padding, text_y), line, font=font, fill=color)
+        text_y += line_h + gap
+
+    result = Image.alpha_composite(base, overlay)
+    return result if original_mode == "RGBA" else result.convert(original_mode)
+
+
 def _resize_for_processing(image: Image.Image, max_side: int = 3600) -> tuple[Image.Image, float]:
     """Cap the work image to avoid excessive RAM, returning its scale factor."""
     longest = max(image.size)
@@ -179,6 +268,7 @@ def apply_instax_look(
     grain: float = 2.0,
     vignette: bool = True,
     flash: float = 0.1,
+    debug: bool = False,
     seed: int = 0,
 ) -> Image.Image:
     """Return an RGB image with a natural Instax-inspired film rendering."""
@@ -187,6 +277,7 @@ def apply_instax_look(
     work, scale = _resize_for_processing(image.convert("RGB"))
     rgb = _to_array(work)
     source = rgb.copy()
+    faces = _detect_faces(source) if flash > 0 or debug else []
 
     # Instant film has a visibly narrower latitude than a phone sensor: mids are
     # bright, blacks keep a little emulsion density, and highlights reach a creamy
@@ -226,7 +317,7 @@ def apply_instax_look(
     rgb = lum + (rgb - lum) * saturation
 
     if flash > 0:
-        rgb = _apply_direct_flash(rgb, flash, source)
+        rgb = _apply_direct_flash(rgb, flash, faces)
 
     # Remove some brittle phone-camera microcontrast. The broad component mimics
     # the taking lens and Instax emulsion, while retaining enough edge definition.
@@ -294,6 +385,20 @@ def apply_instax_look(
         result = result.resize(original_size, Image.Resampling.LANCZOS)
     if alpha is not None:
         result.putalpha(alpha)
+    if debug:
+        debug_faces = [
+            tuple(round(value / scale) for value in face)
+            for face in faces
+        ]
+        result = _draw_debug_overlay(
+            result,
+            debug_faces,
+            strength=strength,
+            grain=grain,
+            flash=flash,
+            vignette=vignette,
+            seed=seed,
+        )
     return result
 
 
@@ -375,6 +480,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="INTENSITY",
         help="模拟拍立得直闪，可选强度 0–2（默认 0.1，省略数值时为 1.0）",
     )
+    parser.add_argument("--debug", action="store_true", help="标出人脸区域并显示当前调色参数")
     parser.add_argument("--seed", type=int, help="颗粒与相纸纹理随机种子（默认由文件路径稳定生成）")
     parser.add_argument("--quality", type=int, default=95, help="JPEG/WebP/HEIC 质量，1–100（默认 95）")
     return parser
@@ -415,6 +521,7 @@ def main() -> None:
                 grain=args.grain,
                 vignette=not args.no_vignette,
                 flash=args.flash,
+                debug=args.debug,
                 seed=args.seed if args.seed is not None else _seed_for(input_path),
             )
         if args.frame:

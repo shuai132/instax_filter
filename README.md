@@ -60,6 +60,14 @@ uv run instax-filter ./photo.jpg --flash 1.6
 uv run instax-filter ./photo.jpg --flash 0
 ```
 
+标出识别到的人脸，并在遮挡较少的左上角或右上角显示当前调色信息：
+
+```bash
+uv run instax-filter ./photo.jpg --debug
+```
+
+调试面板会显示人脸数量、调色强度、颗粒、闪光、暗角、柔化、阴影与高光色调和随机种子。调试标记会写入输出图片，仅建议在检查人脸识别和滤镜参数时使用。
+
 ### 参数
 
 | 参数 | 默认值 | 说明 |
@@ -72,6 +80,7 @@ uv run instax-filter ./photo.jpg --flash 0
 | `--no-frame` | — | 保持原图尺寸，不裁切、不添加相纸白边 |
 | `--no-vignette` | — | 关闭轻微暗角 |
 | `--flash [INTENSITY]` | `0.1` | 检测人脸并从主体向外辐射直闪，范围 `0–2`；单写时使用 `1.0`，设为 `0` 可关闭 |
+| `--debug` | 关闭 | 标出检测到的人脸，并在画面左上角或右上角显示调色信息 |
 | `--seed INTEGER` | 根据输入路径生成 | 固定颗粒和相纸纹理的随机种子 |
 | `--quality INTEGER` | `95` | JPEG、WebP、HEIC 输出质量，范围 `1–100` |
 | `-h`、`--help` | — | 显示命令帮助 |

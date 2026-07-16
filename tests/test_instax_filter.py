@@ -7,6 +7,7 @@ from PIL import Image
 
 from instax_filter import (
     _build_flash_mask,
+    _draw_debug_overlay,
     _save,
     add_instax_frame,
     apply_instax_look,
@@ -35,6 +36,8 @@ class InstaxFilterTests(unittest.TestCase):
         self.assertEqual(args.flash, 0.1)
         self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash"]).flash, 1.0)
         self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash", "1.7"]).flash, 1.7)
+        self.assertFalse(args.debug)
+        self.assertTrue(build_parser().parse_args(["photo.jpg", "--debug"]).debug)
 
     def test_flash_brightens_center_more_than_edges(self) -> None:
         midgray = Image.new("RGB", (120, 160), (90, 90, 90))
@@ -63,6 +66,21 @@ class InstaxFilterTests(unittest.TestCase):
         self.assertGreater(mask[55, 55], 0.9)
         self.assertGreater(mask[62, 237], 0.9)
         self.assertLess(mask[190, 150], 0.05)
+
+    def test_debug_overlay_marks_faces_and_preserves_image_shape(self) -> None:
+        image = Image.new("RGB", (640, 480), (90, 90, 90))
+        debugged = _draw_debug_overlay(
+            image,
+            [(240, 120, 100, 100)],
+            strength=1.5,
+            grain=2.0,
+            flash=0.1,
+            vignette=True,
+            seed=42,
+        )
+        self.assertEqual(debugged.size, image.size)
+        self.assertEqual(debugged.mode, image.mode)
+        self.assertNotEqual(debugged.getpixel((240, 120)), image.getpixel((240, 120)))
 
     def test_seed_makes_grain_repeatable(self) -> None:
         first = apply_instax_look(self.image, seed=123)
