@@ -41,6 +41,37 @@ def _blur(rgb: np.ndarray, radius: float) -> np.ndarray:
     return _to_array(_to_image(rgb).filter(ImageFilter.GaussianBlur(radius=radius)))
 
 
+def _apply_direct_flash(rgb: np.ndarray) -> np.ndarray:
+    """Simulate the hard, center-weighted flash built into an instant camera."""
+    height, width = rgb.shape[:2]
+    yy, xx = np.mgrid[0:height, 0:width]
+    x = (xx / max(width - 1, 1) - 0.5) / 0.58
+    y = (yy / max(height - 1, 1) - 0.43) / 0.68
+    distance_sq = x * x + y * y
+    flash_mask = np.exp(-2.15 * distance_sq).astype(np.float32)[..., None]
+
+    # A direct flash raises exposure most strongly around a centered foreground
+    # subject, flattens its local contrast, and lets pale areas clip decisively.
+    original_lum = _luminance(rgb)
+    rgb = rgb * (1.0 + 1.22 * flash_mask) + flash_mask * np.array([0.105, 0.100, 0.090])
+    rgb = np.clip(rgb, 0.0, 1.0)
+    flashed_lum = _luminance(rgb)
+    rgb += (flashed_lum - rgb) * flash_mask * 0.20
+
+    # The flash-to-background ratio is as important as brightness: surroundings
+    # fall away while the near subject reads as conspicuously overexposed.
+    background = 1.0 - flash_mask
+    rgb *= 1.0 - background * 0.16
+    hot = _smoothstep(0.62, 0.94, flashed_lum) * flash_mask
+    rgb += hot * np.array([0.080, 0.058, 0.028])
+
+    # Preserve a small amount of pre-flash shadow density so the center does not
+    # become a featureless white circle on already-dark photos.
+    shadow_detail = (1.0 - _smoothstep(0.08, 0.42, original_lum)) * flash_mask
+    rgb -= shadow_detail * 0.018
+    return np.clip(rgb, 0.0, 1.0)
+
+
 def _resize_for_processing(image: Image.Image, max_side: int = 3600) -> tuple[Image.Image, float]:
     """Cap the work image to avoid excessive RAM, returning its scale factor."""
     longest = max(image.size)
@@ -57,6 +88,7 @@ def apply_instax_look(
     strength: float = 1.5,
     grain: float = 2.0,
     vignette: bool = True,
+    flash: bool = False,
     seed: int = 0,
 ) -> Image.Image:
     """Return an RGB image with a natural Instax-inspired film rendering."""
@@ -102,6 +134,9 @@ def apply_instax_look(
     midtone = 1.0 - np.clip(np.abs(lum - 0.52) / 0.52, 0.0, 1.0)
     saturation = 1.0 + (0.18 * midtone - 0.055) * strength
     rgb = lum + (rgb - lum) * saturation
+
+    if flash:
+        rgb = _apply_direct_flash(rgb)
 
     # Remove some brittle phone-camera microcontrast. The broad component mimics
     # the taking lens and Instax emulsion, while retaining enough edge definition.
@@ -241,6 +276,7 @@ def build_parser() -> argparse.ArgumentParser:
     frame_group.add_argument("--frame", dest="frame", action="store_true", default=True, help="输出 Instax Mini 尺寸相纸（默认）")
     frame_group.add_argument("--no-frame", dest="frame", action="store_false", help="不裁切、不添加相纸白边")
     parser.add_argument("--no-vignette", action="store_true", help="关闭轻微暗角")
+    parser.add_argument("--flash", action="store_true", help="模拟拍立得直闪，使中央主体明显过曝")
     parser.add_argument("--seed", type=int, help="颗粒与相纸纹理随机种子（默认由文件路径稳定生成）")
     parser.add_argument("--quality", type=int, default=95, help="JPEG/WebP/HEIC 质量，1–100（默认 95）")
     return parser
@@ -278,6 +314,7 @@ def main() -> None:
                 strength=args.strength,
                 grain=args.grain,
                 vignette=not args.no_vignette,
+                flash=args.flash,
                 seed=args.seed if args.seed is not None else _seed_for(input_path),
             )
         if args.frame:
