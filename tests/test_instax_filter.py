@@ -90,7 +90,7 @@ class InstaxFilterTests(unittest.TestCase):
     def test_disposable_mode_uses_hard_flash_and_film_grain(self) -> None:
         disposable = MODE_CONFIGS["disposable"]
         self.assertEqual(disposable.default_grain, 0.9)
-        self.assertEqual(disposable.default_flash, 0.55)
+        self.assertEqual(disposable.default_flash, 0.22)
         self.assertGreater(disposable.vignette_amount, MODE_CONFIGS["instax"].vignette_amount)
         self.assertGreater(disposable.flash_background_falloff, MODE_CONFIGS["instax"].flash_background_falloff)
 
