@@ -3,7 +3,7 @@
 用 Python 模拟多种相机和胶片成像。不会覆盖原图。
 
 - `instax`：按 Instax Mini 的成像比例和约 10 lines/mm 相纸解析力输出，保留适度反差、轻微软化、细微乳剂纹理、暖高光和常亮补闪。
-- `ccd`：模拟约 4–5 MP 小尺寸传感器、机内 JPEG 锐化、较硬直闪、有限动态范围，以及暗部更明显的亮度和彩色噪点；默认不添加相纸白边。
+- `ccd`：模拟约 4–5 MP 小尺寸传感器、机内 JPEG 锐化、较硬直闪、有限动态范围，以及暗部更明显的亮度和彩色噪点。
 - `lofi`：完整保留项目最初的重柔焦、粗颗粒、强辉光、青冷阴影和奶油高光配方。
 - `disposable`：一次性胶片机风格，强调暖色硬直闪、绿色暗部、明显边缘失光和粗颗粒。
 - `chrome`：高饱和反转片风格，具有深黑、浓郁蓝绿、暖高光、细颗粒和清晰边缘。
@@ -99,11 +99,13 @@ uv run instax-filter ./photo.heic -o ./photo_instax.jpg
 uv run instax-filter ./photo.jpg --strength 0.85 --grain 0.7
 ```
 
-`instax` 默认输出拍立得尺寸：竖图 `1080×1720`，横图 `1720×1080`。`ccd` 默认保持原图比例且不添加白边。只应用 Instax 成像、不添加相纸白边：
+所有模式默认保持原图尺寸，不裁切、不添加相纸白边。添加 Instax Mini 相纸白边（竖图 `1080×1720`，横图 `1720×1080`）：
 
 ```bash
-uv run instax-filter ./photo.jpg --no-frame
+uv run instax-filter ./photo.jpg --frame
 ```
+
+`--no-frame` 可显式关闭相框，例如用于覆盖脚本或别名中预设的 `--frame`。
 
 关闭暗角并固定随机纹理，便于重复得到相同结果：
 
@@ -147,8 +149,8 @@ uv run instax-filter ./photo.jpg --debug
 | `--mode-all` | 关闭 | 一次生成全部成像预设；不能与 `--mode` 或 `-o/--output` 同时使用 |
 | `--strength FLOAT` | 按模式 | 成像特征强度，范围 `0–1.5` |
 | `--grain FLOAT` | 按模式 | 乳剂颗粒或传感器噪声，范围 `0–2` |
-| `--frame` | 按模式 | 裁切并输出 Instax Mini 尺寸相纸；`instax`、`lofi` 默认开启，其他模式默认关闭 |
-| `--no-frame` | — | 保持原图尺寸，不裁切、不添加相纸白边 |
+| `--frame` | 关闭 | 裁切并输出 Instax Mini 尺寸相纸白边 |
+| `--no-frame` | — | 显式保持原图尺寸，不裁切、不添加相纸白边 |
 | `--no-vignette` | — | 关闭轻微暗角 |
 | `--flash [INTENSITY]` | 按模式 | 检测人脸并从主体向外辐射直闪，范围 `0–2`；单写时使用 `1.0` |
 | `--debug` | 关闭 | 标出检测到的人脸，并在画面左上角或右上角显示调色信息 |
