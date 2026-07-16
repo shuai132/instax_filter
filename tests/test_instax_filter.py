@@ -94,6 +94,12 @@ class InstaxFilterTests(unittest.TestCase):
         self.assertGreater(disposable.vignette_amount, MODE_CONFIGS["instax"].vignette_amount)
         self.assertGreater(disposable.flash_background_falloff, MODE_CONFIGS["instax"].flash_background_falloff)
 
+    def test_chrome_mode_is_vivid_crisp_and_fine_grained(self) -> None:
+        chrome = MODE_CONFIGS["chrome"]
+        self.assertGreater(chrome.midtone_saturation, MODE_CONFIGS["ccd"].midtone_saturation)
+        self.assertLess(chrome.local_detail_amount, 0)
+        self.assertLess(chrome.default_grain, MODE_CONFIGS["instax"].default_grain)
+
     def test_flash_brightens_center_more_than_edges(self) -> None:
         midgray = Image.new("RGB", (120, 160), (90, 90, 90))
         baseline = np.asarray(
