@@ -145,6 +145,14 @@ class InstaxFilterTests(unittest.TestCase):
     def test_every_mode_preserves_original_dimensions_by_default(self) -> None:
         self.assertTrue(all(not config.default_frame for config in MODE_CONFIGS.values()))
 
+    def test_only_flash_driven_modes_enable_flash_by_default(self) -> None:
+        self.assertEqual(MODE_CONFIGS["instax"].default_flash, 0.35)
+        self.assertEqual(MODE_CONFIGS["disposable"].default_flash, 0.22)
+        self.assertEqual(MODE_CONFIGS["night"].default_flash, 0.30)
+        for mode in MODE_CONFIGS.keys() - {"instax", "disposable", "night"}:
+            with self.subTest(mode=mode):
+                self.assertEqual(MODE_CONFIGS[mode].default_flash, 0.0)
+
     def test_lofi_mode_preserves_original_heavy_recipe(self) -> None:
         lofi = MODE_CONFIGS["lofi"]
         self.assertEqual(lofi.default_strength, 1.5)
