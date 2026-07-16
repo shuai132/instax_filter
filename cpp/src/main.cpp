@@ -1,5 +1,6 @@
 #include "instax/mode_config.hpp"
 #include "instax/processing_engine.hpp"
+#include "instax/frame_renderer.hpp"
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -27,6 +28,7 @@ using instax::ModeConfig;
 using instax::ModeRegistry;
 using instax::FilterEngine;
 using instax::FilterSettings;
+using instax::FrameRenderer;
 
 
 struct Options {
@@ -41,33 +43,6 @@ struct Options {
 };
 
 
-static cv::Mat3b add_frame(const cv::Mat3b& input, std::uint64_t seed) {
-    const bool portrait=input.rows>=input.cols;
-    const cv::Size image_size=portrait?cv::Size(920,1240):cv::Size(1240,920);
-    const cv::Size paper_size=portrait?cv::Size(1080,1720):cv::Size(1720,1080);
-    const float scale=std::max(image_size.width/static_cast<float>(input.cols),image_size.height/static_cast<float>(input.rows));
-    cv::Mat3b resized; cv::resize(input,resized,{},scale,scale,cv::INTER_LANCZOS4);
-    const int x=(resized.cols-image_size.width)/2,y=(resized.rows-image_size.height)/2;
-    cv::Mat3b fitted=resized(cv::Rect(x,y,image_size.width,image_size.height));
-    cv::Mat3b paper(paper_size,{250,249,246});
-    std::mt19937_64 gen(seed^0x49A37B1D); std::normal_distribution<float> noise(0,.35f);
-    for(auto& p:paper) for(int c=0;c<3;++c) p[c]=cv::saturate_cast<std::uint8_t>(p[c]+noise(gen));
-    const cv::Point position=portrait?cv::Point(80,120):cv::Point(120,80);
-    fitted.copyTo(paper(cv::Rect(position,image_size)));
-    return paper;
-}
-
-static cv::Mat3f fit_frame_image(const cv::Mat3f& input) {
-    const bool portrait = input.rows >= input.cols;
-    const cv::Size target = portrait ? cv::Size(920, 1240) : cv::Size(1240, 920);
-    const float scale = std::max(target.width / static_cast<float>(input.cols),
-                                 target.height / static_cast<float>(input.rows));
-    cv::Mat3f resized;
-    cv::resize(input, resized, {}, scale, scale, cv::INTER_LANCZOS4);
-    const int x = (resized.cols - target.width) / 2;
-    const int y = (resized.rows - target.height) / 2;
-    return resized(cv::Rect(x, y, target.width, target.height)).clone();
-}
 
 static void draw_debug(cv::Mat3b& image,const std::vector<cv::Rect>& faces,const ModeConfig& mode,
                        float strength,float grain,float flash,bool vignette,std::uint64_t seed){
@@ -155,12 +130,12 @@ int main(int argc,char** argv){
             const float grain=options.grain.value_or(mode.default_grain);
             const float flash=options.flash.value_or(mode.default_flash);
             const bool frame=options.frame.value_or(mode.default_frame);
-            const cv::Mat3f mode_source = frame ? fit_frame_image(source) : source;
+            const cv::Mat3f mode_source = frame ? FrameRenderer{}.fit(source) : source;
             const FilterSettings settings{strength, grain, flash, options.vignette, seed, options.debug};
             const auto filtered=FilterEngine{}.apply(mode_source,mode,settings);
             cv::Mat3b output; filtered.image.convertTo(output,CV_8UC3,255.0);
             if(options.debug) draw_debug(output,filtered.faces,mode,strength,grain,flash,options.vignette,seed);
-            if(frame) output=add_frame(output,seed);
+            if(frame) output=FrameRenderer{}.add(output,seed);
             const fs::path path=options.output.value_or(default_output(options.input,mode_name));
             if(fs::absolute(path)==fs::absolute(options.input)) throw std::runtime_error("输出路径不能与输入文件相同");
             cv::cvtColor(output,output,cv::COLOR_RGB2BGR);
