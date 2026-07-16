@@ -54,9 +54,15 @@ class InstaxFilterTests(unittest.TestCase):
             apply_instax_look(edge, mode="ccd", strength=1.5, grain=0, vignette=False, flash=0),
             dtype=np.float32,
         )
+        lofi = np.asarray(
+            apply_instax_look(edge, mode="lofi", strength=1.5, grain=0, vignette=False, flash=0),
+            dtype=np.float32,
+        )
         instax_edge_contrast = instax[:, 80].mean() - instax[:, 79].mean()
         ccd_edge_contrast = ccd[:, 80].mean() - ccd[:, 79].mean()
+        lofi_edge_contrast = lofi[:, 80].mean() - lofi[:, 79].mean()
         self.assertGreater(ccd_edge_contrast, instax_edge_contrast)
+        self.assertGreater(instax_edge_contrast, lofi_edge_contrast)
 
     def test_ccd_noise_is_more_chromatic_in_shadows(self) -> None:
         dark = Image.new("RGB", (160, 160), (35, 35, 35))
@@ -71,6 +77,15 @@ class InstaxFilterTests(unittest.TestCase):
     def test_modes_have_camera_appropriate_frame_defaults(self) -> None:
         self.assertTrue(MODE_CONFIGS["instax"].default_frame)
         self.assertFalse(MODE_CONFIGS["ccd"].default_frame)
+        self.assertTrue(MODE_CONFIGS["lofi"].default_frame)
+
+    def test_lofi_mode_preserves_original_heavy_recipe(self) -> None:
+        lofi = MODE_CONFIGS["lofi"]
+        self.assertEqual(lofi.default_strength, 1.5)
+        self.assertEqual(lofi.default_grain, 2.0)
+        self.assertEqual(lofi.soften_amount, 0.52)
+        self.assertEqual(lofi.local_detail_amount, 0.16)
+        self.assertEqual(lofi.glow_amount, 0.17)
 
     def test_flash_brightens_center_more_than_edges(self) -> None:
         midgray = Image.new("RGB", (120, 160), (90, 90, 90))

@@ -1,9 +1,10 @@
 # Instax Filter
 
-用 Python 模拟两类真实相机成像，而不是套用统一的“复古滤镜”：富士 Instax Mini 拍立得，以及以 2005 年 Canon PowerShot A520 一类小尺寸 CCD 卡片机为参考的早期数码照片。不会覆盖原图。
+用 Python 模拟三类成像：富士 Instax Mini 拍立得、以 2005 年 Canon PowerShot A520 一类小尺寸 CCD 卡片机为参考的早期数码照片，以及项目最初的重颗粒 Lo-fi 胶片效果。不会覆盖原图。
 
 - `instax`：按 Instax Mini 的成像比例和约 10 lines/mm 相纸解析力输出，保留适度反差、轻微软化、细微乳剂纹理、暖高光和常亮补闪。
 - `ccd`：模拟约 4–5 MP 小尺寸传感器、机内 JPEG 锐化、较硬直闪、有限动态范围，以及暗部更明显的亮度和彩色噪点；默认不添加相纸白边。
+- `lofi`：完整保留项目最初的重柔焦、粗颗粒、强辉光、青冷阴影和奶油高光配方。
 
 校准参考包括 [Fujifilm Instax Mini 12 官方规格](https://www.fujifilm.com/us/en/consumer/instax/cameras/mini12/specifications)、[Fujifilm Instax 相纸数据表](https://asset.fujifilm.com/master/apac/files/2020-06/acf110878e2c263a1a0c13b762fb1cbe/instax_datasheet.pdf)、[Canon PowerShot A520 官方资料](https://global.canon/en/c-museum/product/dcc508.html)，以及 Imaging Resource 发布的 [A520 未修改原始样片](https://old.imaging-resource.com/PRODS/A520/A52PICS.HTM)。
 
@@ -27,7 +28,13 @@ uv run instax-filter ./photo.jpg
 uv run instax-filter ./photo.jpg --mode ccd
 ```
 
-输出到输入图片所在目录，文件名按模式分别为 `photo_instax.jpg` 或 `photo_ccd.jpg`。
+使用最初的重颗粒 Lo-fi 效果：
+
+```bash
+uv run instax-filter ./photo.jpg --mode lofi
+```
+
+输出到输入图片所在目录，文件名按模式分别为 `photo_instax.jpg`、`photo_ccd.jpg` 或 `photo_lofi.jpg`。
 
 指定输出路径，并转换图片格式：
 
@@ -85,13 +92,13 @@ uv run instax-filter ./photo.jpg --debug
 | --- | --- | --- |
 | `INPUT` | 必填 | 本地输入图片路径 |
 | `-o PATH`、`--output PATH` | 原目录下 `*_{mode}` | 指定输出路径；扩展名决定输出格式 |
-| `--mode {instax,ccd}` | `instax` | 选择 Instax Mini 拍立得或 2000 年代 CCD 卡片机 |
-| `--strength FLOAT` | `1.0` | 成像特征强度，范围 `0–1.5` |
-| `--grain FLOAT` | 按模式 | 乳剂颗粒或传感器噪声，范围 `0–2`；`instax` 默认 `0.3`，`ccd` 默认 `0.65` |
-| `--frame` | 按模式 | 裁切并输出 Instax Mini 尺寸相纸；`instax` 默认开启，`ccd` 默认关闭 |
+| `--mode {instax,ccd,lofi}` | `instax` | 选择 Instax Mini、2000 年代 CCD 卡片机或重颗粒 Lo-fi 效果 |
+| `--strength FLOAT` | 按模式 | 成像特征强度，范围 `0–1.5`；`instax`、`ccd` 默认 `1.0`，`lofi` 默认 `1.5` |
+| `--grain FLOAT` | 按模式 | 乳剂颗粒或传感器噪声，范围 `0–2`；`instax` 默认 `0.3`，`ccd` 默认 `0.65`，`lofi` 默认 `2.0` |
+| `--frame` | 按模式 | 裁切并输出 Instax Mini 尺寸相纸；`instax`、`lofi` 默认开启，`ccd` 默认关闭 |
 | `--no-frame` | — | 保持原图尺寸，不裁切、不添加相纸白边 |
 | `--no-vignette` | — | 关闭轻微暗角 |
-| `--flash [INTENSITY]` | 按模式 | 检测人脸并从主体向外辐射直闪，范围 `0–2`；`instax` 默认 `0.35`，`ccd` 默认 `0.15`，单写时使用 `1.0` |
+| `--flash [INTENSITY]` | 按模式 | 检测人脸并从主体向外辐射直闪，范围 `0–2`；`instax` 默认 `0.35`，`ccd` 默认 `0.15`，`lofi` 默认 `0.1`，单写时使用 `1.0` |
 | `--debug` | 关闭 | 标出检测到的人脸，并在画面左上角或右上角显示调色信息 |
 | `--seed INTEGER` | 根据输入路径生成 | 固定颗粒和相纸纹理的随机种子 |
 | `--quality INTEGER` | `95` | JPEG、WebP、HEIC 输出质量，范围 `1–100` |
