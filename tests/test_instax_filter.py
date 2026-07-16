@@ -50,6 +50,10 @@ class InstaxFilterTests(unittest.TestCase):
         args = build_parser().parse_args(["photo.jpg", "--mode", "ccd", "noir", "night"])
         self.assertEqual(args.mode, ["ccd", "noir", "night"])
 
+    def test_cli_mode_all_selects_every_mode(self) -> None:
+        args = build_parser().parse_args(["photo.jpg", "--mode-all"])
+        self.assertTrue(args.mode_all)
+
     def test_help_describes_every_mode(self) -> None:
         help_text = build_parser().format_help()
         for mode, description in {
@@ -77,12 +81,31 @@ class InstaxFilterTests(unittest.TestCase):
             self.assertIn("photo_ccd.png", stdout.getvalue())
             self.assertIn("photo_noir.png", stdout.getvalue())
 
+    def test_cli_mode_all_generates_every_mode(self) -> None:
+        with TemporaryDirectory() as directory:
+            input_path = Path(directory) / "photo.png"
+            self.image.save(input_path)
+            argv = ["instax-filter", str(input_path), "--mode-all", "--no-frame", "--seed", "17"]
+            with patch("sys.argv", argv), redirect_stdout(StringIO()):
+                main()
+            for mode in MODE_CONFIGS:
+                with self.subTest(mode=mode):
+                    self.assertTrue((input_path.parent / f"photo_{mode}.png").is_file())
+
     def test_cli_rejects_output_path_with_multiple_modes(self) -> None:
         with TemporaryDirectory() as directory:
             input_path = Path(directory) / "photo.png"
             self.image.save(input_path)
             argv = ["instax-filter", str(input_path), "--mode", "ccd", "noir", "-o", str(Path(directory) / "out.png")]
-            with patch("sys.argv", argv), self.assertRaisesRegex(SystemExit, "多个 --mode"):
+            with patch("sys.argv", argv), self.assertRaisesRegex(SystemExit, "生成多个模式"):
+                main()
+
+    def test_cli_rejects_output_path_with_mode_all(self) -> None:
+        with TemporaryDirectory() as directory:
+            input_path = Path(directory) / "photo.png"
+            self.image.save(input_path)
+            argv = ["instax-filter", str(input_path), "--mode-all", "-o", str(Path(directory) / "out.png")]
+            with patch("sys.argv", argv), self.assertRaisesRegex(SystemExit, "生成多个模式"):
                 main()
 
     def test_ccd_mode_is_crisper_than_instax(self) -> None:

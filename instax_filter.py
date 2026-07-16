@@ -818,13 +818,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("input", type=Path, help="本地图片路径")
     parser.add_argument("-o", "--output", type=Path, help="输出路径（默认：原目录下 *_{mode}）")
-    parser.add_argument(
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
         "--mode",
         choices=tuple(MODE_CONFIGS),
         nargs="+",
         default=["instax"],
         metavar="MODE",
         help=mode_help,
+    )
+    mode_group.add_argument(
+        "--mode-all",
+        action="store_true",
+        help="一次生成全部成像预设（不能与 --mode 或 --output 同时使用）",
     )
     parser.add_argument("--strength", type=float, help="成像特征强度，0–1.5（默认值按模式）")
     parser.add_argument("--grain", type=float, help="颗粒或传感器噪声，0–2（默认值按模式）")
@@ -849,7 +855,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
-    modes = args.mode
+    modes = list(MODE_CONFIGS) if args.mode_all else args.mode
     input_path = args.input.expanduser().resolve()
     if not input_path.is_file():
         raise SystemExit(f"找不到输入文件：{input_path}")
@@ -864,7 +870,7 @@ def main() -> None:
     if not 1 <= args.quality <= 100:
         raise SystemExit("--quality 必须在 1–100 之间")
     if args.output and len(modes) > 1:
-        raise SystemExit("同时使用多个 --mode 时不能指定 --output；输出文件将按模式自动命名")
+        raise SystemExit("生成多个模式时不能指定 --output；输出文件将按模式自动命名")
 
     output_paths = [
         (args.output.expanduser() if args.output else _default_output(input_path, mode)).resolve()
