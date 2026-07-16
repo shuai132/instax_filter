@@ -8,6 +8,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc imgcodecs objdetect)
 
 add_executable(instax-filter-cpp
+    src/application.cpp
+    src/cli_options.cpp
     src/frame_renderer.cpp
     src/main.cpp
     src/mode_config.cpp
