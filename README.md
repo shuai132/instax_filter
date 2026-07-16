@@ -77,6 +77,14 @@ uv run instax-filter ./photo.jpg --mode instax ccd noir night
 
 多模式会分别使用各模式的默认参数，并生成 `photo_instax.jpg`、`photo_ccd.jpg` 等文件；显式指定的 `--strength`、`--grain`、`--flash`、`--frame` 等参数会应用到所有模式。由于 `-o/--output` 只能表示一个文件，多模式下不能同时使用该参数。
 
+一次生成全部模式：
+
+```bash
+uv run instax-filter ./photo.jpg --mode-all
+```
+
+`--mode-all` 不能与 `--mode` 或 `-o/--output` 同时使用。
+
 输出到输入图片所在目录，默认文件名为 `photo_{mode}.jpg`。
 
 指定输出路径，并转换图片格式：
@@ -136,6 +144,7 @@ uv run instax-filter ./photo.jpg --debug
 | `INPUT` | 必填 | 本地输入图片路径 |
 | `-o PATH`、`--output PATH` | 原目录下 `*_{mode}` | 指定输出路径；扩展名决定输出格式 |
 | `--mode MODE [MODE ...]` | `instax` | 选择一个或多个成像预设；可选值及简要说明也可通过 `-h` 查看 |
+| `--mode-all` | 关闭 | 一次生成全部成像预设；不能与 `--mode` 或 `-o/--output` 同时使用 |
 | `--strength FLOAT` | 按模式 | 成像特征强度，范围 `0–1.5` |
 | `--grain FLOAT` | 按模式 | 乳剂颗粒或传感器噪声，范围 `0–2` |
 | `--frame` | 按模式 | 裁切并输出 Instax Mini 尺寸相纸；`instax`、`lofi` 默认开启，其他模式默认关闭 |
