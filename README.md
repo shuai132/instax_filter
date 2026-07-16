@@ -179,3 +179,15 @@ uv run instax-filter --help
 ```bash
 uv run python -m unittest discover -s tests
 ```
+
+## 代码结构
+
+Python 实现采用分层模块，`instax_filter.py` 仅作为旧导入路径的兼容门面：
+
+- `instax/config.py`：不可变模式配置与内置模式注册表。
+- `instax/engine.py`：滤镜处理、人脸闪光和调试叠层。
+- `instax/frame.py`：Instax Mini 裁切与相纸渲染。
+- `instax/storage.py`：输出命名、稳定随机种子和图片持久化。
+- `instax/cli.py`：参数解析、校验及应用流程编排。
+
+C++ 实现遵循相同的职责边界，详见 `cpp/README.md`。
