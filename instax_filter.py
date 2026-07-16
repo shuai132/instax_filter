@@ -232,7 +232,7 @@ def _save(image: Image.Image, output_path: Path, *, quality: int) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="给照片添加自然、克制的富士拍立得胶片质感")
+    parser = argparse.ArgumentParser(description="给照片添加柔焦、颗粒明显的富士拍立得胶片质感")
     parser.add_argument("input", type=Path, help="本地图片路径")
     parser.add_argument("-o", "--output", type=Path, help="输出路径（默认：原目录下 *_instax）")
     parser.add_argument("--strength", type=float, default=1.0, help="调色强度，0–1.5（默认 1.0）")
@@ -241,7 +241,7 @@ def build_parser() -> argparse.ArgumentParser:
     frame_group.add_argument("--frame", dest="frame", action="store_true", default=True, help="输出 Instax Mini 尺寸相纸（默认）")
     frame_group.add_argument("--no-frame", dest="frame", action="store_false", help="不裁切、不添加相纸白边")
     parser.add_argument("--no-vignette", action="store_true", help="关闭轻微暗角")
-    parser.add_argument("--seed", type=int, help="颗粒随机种子（默认由文件路径稳定生成）")
+    parser.add_argument("--seed", type=int, help="颗粒与相纸纹理随机种子（默认由文件路径稳定生成）")
     parser.add_argument("--quality", type=int, default=95, help="JPEG/WebP/HEIC 质量，1–100（默认 95）")
     return parser
 
