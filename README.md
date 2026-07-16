@@ -7,6 +7,7 @@
 - `lofi`：完整保留项目最初的重柔焦、粗颗粒、强辉光、青冷阴影和奶油高光配方。
 - `disposable`：一次性胶片机风格，强调暖色硬直闪、绿色暗部、明显边缘失光和粗颗粒。
 - `chrome`：高饱和反转片风格，具有深黑、浓郁蓝绿、暖高光、细颗粒和清晰边缘。
+- `dream`：低反差梦境风格，抬高黑位、降低饱和度，并加入粉紫柔光和明显高光辉光。
 
 校准参考包括 [Fujifilm Instax Mini 12 官方规格](https://www.fujifilm.com/us/en/consumer/instax/cameras/mini12/specifications)、[Fujifilm Instax 相纸数据表](https://asset.fujifilm.com/master/apac/files/2020-06/acf110878e2c263a1a0c13b762fb1cbe/instax_datasheet.pdf)、[Canon PowerShot A520 官方资料](https://global.canon/en/c-museum/product/dcc508.html)，以及 Imaging Resource 发布的 [A520 未修改原始样片](https://old.imaging-resource.com/PRODS/A520/A52PICS.HTM)。
 
@@ -46,6 +47,12 @@ uv run instax-filter ./photo.jpg --mode disposable
 
 ```bash
 uv run instax-filter ./photo.jpg --mode chrome
+```
+
+使用低反差梦境效果：
+
+```bash
+uv run instax-filter ./photo.jpg --mode dream
 ```
 
 输出到输入图片所在目录，默认文件名为 `photo_{mode}.jpg`。
@@ -106,7 +113,7 @@ uv run instax-filter ./photo.jpg --debug
 | --- | --- | --- |
 | `INPUT` | 必填 | 本地输入图片路径 |
 | `-o PATH`、`--output PATH` | 原目录下 `*_{mode}` | 指定输出路径；扩展名决定输出格式 |
-| `--mode {instax,ccd,lofi,disposable,chrome}` | `instax` | 选择成像预设 |
+| `--mode {instax,ccd,lofi,disposable,chrome,dream}` | `instax` | 选择成像预设 |
 | `--strength FLOAT` | 按模式 | 成像特征强度，范围 `0–1.5` |
 | `--grain FLOAT` | 按模式 | 乳剂颗粒或传感器噪声，范围 `0–2` |
 | `--frame` | 按模式 | 裁切并输出 Instax Mini 尺寸相纸；`instax`、`lofi` 默认开启，其他模式默认关闭 |

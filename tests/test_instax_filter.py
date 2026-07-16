@@ -100,6 +100,13 @@ class InstaxFilterTests(unittest.TestCase):
         self.assertLess(chrome.local_detail_amount, 0)
         self.assertLess(chrome.default_grain, MODE_CONFIGS["instax"].default_grain)
 
+    def test_dream_mode_lifts_blacks_and_adds_bloom(self) -> None:
+        dream = MODE_CONFIGS["dream"]
+        self.assertLess(dream.contrast_amount, 0)
+        self.assertGreater(dream.black_lift, MODE_CONFIGS["lofi"].black_lift)
+        self.assertGreater(dream.glow_amount, MODE_CONFIGS["lofi"].glow_amount)
+        self.assertGreater(dream.halo_amount, MODE_CONFIGS["lofi"].halo_amount)
+
     def test_flash_brightens_center_more_than_edges(self) -> None:
         midgray = Image.new("RGB", (120, 160), (90, 90, 90))
         baseline = np.asarray(
