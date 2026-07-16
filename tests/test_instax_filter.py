@@ -27,7 +27,7 @@ class InstaxFilterTests(unittest.TestCase):
         self.image = Image.fromarray(pixels, "RGB")
 
     def test_neutral_settings_preserve_pixels(self) -> None:
-        result = apply_instax_look(self.image, strength=0, grain=0)
+        result = apply_instax_look(self.image, strength=0, grain=0, flash=0)
         np.testing.assert_array_equal(np.asarray(result), np.asarray(self.image))
 
     def test_cli_defaults_use_restrained_instax_mode(self) -> None:
@@ -35,13 +35,14 @@ class InstaxFilterTests(unittest.TestCase):
         self.assertEqual(args.mode, "instax")
         self.assertIsNone(args.strength)
         self.assertIsNone(args.grain)
-        self.assertEqual(args.flash, 0.1)
+        self.assertIsNone(args.flash)
+        self.assertIsNone(args.frame)
         self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash"]).flash, 1.0)
         self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash", "1.7"]).flash, 1.7)
         self.assertFalse(args.debug)
         self.assertTrue(build_parser().parse_args(["photo.jpg", "--debug"]).debug)
 
-    def test_ccd_mode_remains_softer_than_instax(self) -> None:
+    def test_ccd_mode_is_crisper_than_instax(self) -> None:
         pixels = np.zeros((160, 160, 3), dtype=np.uint8)
         pixels[:, 80:] = 255
         edge = Image.fromarray(pixels, "RGB")
@@ -55,7 +56,21 @@ class InstaxFilterTests(unittest.TestCase):
         )
         instax_edge_contrast = instax[:, 80].mean() - instax[:, 79].mean()
         ccd_edge_contrast = ccd[:, 80].mean() - ccd[:, 79].mean()
-        self.assertGreater(instax_edge_contrast, ccd_edge_contrast)
+        self.assertGreater(ccd_edge_contrast, instax_edge_contrast)
+
+    def test_ccd_noise_is_more_chromatic_in_shadows(self) -> None:
+        dark = Image.new("RGB", (160, 160), (35, 35, 35))
+        instax = np.asarray(apply_instax_look(dark, mode="instax", grain=1, flash=0, seed=7), dtype=np.float32)
+        ccd = np.asarray(apply_instax_look(dark, mode="ccd", grain=1, flash=0, seed=7), dtype=np.float32)
+        instax -= instax.mean(axis=(0, 1), keepdims=True)
+        ccd -= ccd.mean(axis=(0, 1), keepdims=True)
+        instax_chroma = np.std(instax - instax.mean(axis=2, keepdims=True))
+        ccd_chroma = np.std(ccd - ccd.mean(axis=2, keepdims=True))
+        self.assertGreater(ccd_chroma, instax_chroma * 2)
+
+    def test_modes_have_camera_appropriate_frame_defaults(self) -> None:
+        self.assertTrue(MODE_CONFIGS["instax"].default_frame)
+        self.assertFalse(MODE_CONFIGS["ccd"].default_frame)
 
     def test_flash_brightens_center_more_than_edges(self) -> None:
         midgray = Image.new("RGB", (120, 160), (90, 90, 90))

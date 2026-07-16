@@ -1,8 +1,11 @@
 # Instax Filter
 
-用 Python 给照片添加辨识度明显、但不依赖漏光和划痕等复古特效的真实富士拍立得风格：保留主体轮廓，适度降低数码锐感，呈现较窄的动态范围、奶油高光、青冷阴影、暖肤色、颗粒、辉光和相纸密度变化。默认裁切成 Instax Mini 的 46×62 mm 成像比例，并输出为 54×86 mm 相纸比例；不会覆盖原图。
+用 Python 模拟两类真实相机成像，而不是套用统一的“复古滤镜”：富士 Instax Mini 拍立得，以及以 2005 年 Canon PowerShot A520 一类小尺寸 CCD 卡片机为参考的早期数码照片。不会覆盖原图。
 
-默认的 `instax` 模式模拟较清晰的真实拍立得成像。原有的重柔焦、高颗粒效果保留为 `ccd` 模式。
+- `instax`：按 Instax Mini 的成像比例和约 10 lines/mm 相纸解析力输出，保留适度反差、轻微软化、细微乳剂纹理、暖高光和常亮补闪。
+- `ccd`：模拟约 4–5 MP 小尺寸传感器、机内 JPEG 锐化、较硬直闪、有限动态范围，以及暗部更明显的亮度和彩色噪点；默认不添加相纸白边。
+
+校准参考包括 [Fujifilm Instax Mini 12 官方规格](https://www.fujifilm.com/us/en/consumer/instax/cameras/mini12/specifications)、[Fujifilm Instax 相纸数据表](https://asset.fujifilm.com/master/apac/files/2020-06/acf110878e2c263a1a0c13b762fb1cbe/instax_datasheet.pdf)、[Canon PowerShot A520 官方资料](https://global.canon/en/c-museum/product/dcc508.html)，以及 Imaging Resource 发布的 [A520 未修改原始样片](https://old.imaging-resource.com/PRODS/A520/A52PICS.HTM)。
 
 ## 使用
 
@@ -18,13 +21,13 @@ uv run instax-filter INPUT [-o OUTPUT] [选项]
 uv run instax-filter ./photo.jpg
 ```
 
-使用原有的重柔焦效果：
+使用 2000 年代 CCD 卡片机效果：
 
 ```bash
 uv run instax-filter ./photo.jpg --mode ccd
 ```
 
-输出到输入图片所在目录，文件名为 `photo_instax.jpg`。
+输出到输入图片所在目录，文件名按模式分别为 `photo_instax.jpg` 或 `photo_ccd.jpg`。
 
 指定输出路径，并转换图片格式：
 
@@ -38,7 +41,7 @@ uv run instax-filter ./photo.heic -o ./photo_instax.jpg
 uv run instax-filter ./photo.jpg --strength 0.85 --grain 0.7
 ```
 
-默认输出为拍立得尺寸：竖图 `1080×1720`，横图 `1720×1080`。只添加滤镜，不裁切、不添加相纸白边：
+`instax` 默认输出拍立得尺寸：竖图 `1080×1720`，横图 `1720×1080`。`ccd` 默认保持原图比例且不添加白边。只应用 Instax 成像、不添加相纸白边：
 
 ```bash
 uv run instax-filter ./photo.jpg --no-frame
@@ -50,7 +53,7 @@ uv run instax-filter ./photo.jpg --no-frame
 uv run instax-filter ./photo.jpg --no-vignette --seed 42
 ```
 
-默认使用 `0.1` 的轻微拍立得直闪。脚本会先检测正脸和侧脸，再以每张脸为核心向头部、颈部和上半身辐射闪光；没有检测到人脸时回退到画面中央偏上的通用直闪。单写 `--flash` 时使用标准强度 `1.0`：
+`instax` 默认使用 `0.35` 的常亮补闪，`ccd` 默认使用 `0.15` 的轻微直闪。脚本会先检测正脸和侧脸，再以每张脸为核心向头部、颈部和上半身辐射闪光；没有检测到人脸时回退到画面中央偏上的通用直闪。两种模式具有不同的闪光色温、反差和背景衰减。单写 `--flash` 时使用标准强度 `1.0`：
 
 ```bash
 uv run instax-filter ./photo.jpg --flash
@@ -81,14 +84,14 @@ uv run instax-filter ./photo.jpg --debug
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
 | `INPUT` | 必填 | 本地输入图片路径 |
-| `-o PATH`、`--output PATH` | 原目录下 `*_instax` | 指定输出路径；扩展名决定输出格式 |
-| `--mode {instax,ccd}` | `instax` | `instax` 为较清晰的拍立得；`ccd` 保留原有重柔焦效果 |
-| `--strength FLOAT` | 按模式 | 调色和质感强度，范围 `0–1.5`；`instax` 默认 `1.0`，`ccd` 默认 `1.5` |
-| `--grain FLOAT` | 按模式 | 颗粒强度，范围 `0–2`；`instax` 默认 `0.8`，`ccd` 默认 `2.0` |
-| `--frame` | 开启 | 裁切并输出 Instax Mini 尺寸相纸 |
+| `-o PATH`、`--output PATH` | 原目录下 `*_{mode}` | 指定输出路径；扩展名决定输出格式 |
+| `--mode {instax,ccd}` | `instax` | 选择 Instax Mini 拍立得或 2000 年代 CCD 卡片机 |
+| `--strength FLOAT` | `1.0` | 成像特征强度，范围 `0–1.5` |
+| `--grain FLOAT` | 按模式 | 乳剂颗粒或传感器噪声，范围 `0–2`；`instax` 默认 `0.3`，`ccd` 默认 `0.65` |
+| `--frame` | 按模式 | 裁切并输出 Instax Mini 尺寸相纸；`instax` 默认开启，`ccd` 默认关闭 |
 | `--no-frame` | — | 保持原图尺寸，不裁切、不添加相纸白边 |
 | `--no-vignette` | — | 关闭轻微暗角 |
-| `--flash [INTENSITY]` | `0.1` | 检测人脸并从主体向外辐射直闪，范围 `0–2`；单写时使用 `1.0`，设为 `0` 可关闭 |
+| `--flash [INTENSITY]` | 按模式 | 检测人脸并从主体向外辐射直闪，范围 `0–2`；`instax` 默认 `0.35`，`ccd` 默认 `0.15`，单写时使用 `1.0` |
 | `--debug` | 关闭 | 标出检测到的人脸，并在画面左上角或右上角显示调色信息 |
 | `--seed INTEGER` | 根据输入路径生成 | 固定颗粒和相纸纹理的随机种子 |
 | `--quality INTEGER` | `95` | JPEG、WebP、HEIC 输出质量，范围 `1–100` |

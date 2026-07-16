@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply a restrained Fujifilm Instax-inspired look to a local photo."""
+"""Emulate Fujifilm Instax Mini and early compact CCD camera rendering."""
 
 from __future__ import annotations
 
@@ -27,30 +27,111 @@ class ModeConfig:
     name: str
     default_strength: float
     default_grain: float
+    default_flash: float
+    default_frame: bool
+    processing_max_side: int
+    exposure_ev: float
+    contrast_amount: float
+    gamma_lift: float
+    black_compression: float
+    black_lift: float
+    shadow_tint: tuple[float, float, float]
+    midtone_tint: tuple[float, float, float]
+    highlight_tint: tuple[float, float, float]
+    color_matrix: tuple[tuple[float, float, float], ...]
+    midtone_saturation: float
+    saturation_bias: float
     soften_amount: float
     local_detail_amount: float
     glow_amount: float
     halo_amount: float
+    vignette_amount: float
+    vignette_tint: tuple[float, float, float]
+    density_texture: tuple[float, float, float]
+    grain_fine_mix: float
+    grain_floor: float
+    grain_shadow: float
+    chroma_noise_floor: float
+    chroma_noise_shadow: float
+    flash_gain: float
+    flash_bias: tuple[float, float, float]
+    flash_desaturation: float
+    flash_background_falloff: float
+    flash_hot_tint: tuple[float, float, float]
 
 
 MODE_CONFIGS = {
     "instax": ModeConfig(
         name="instax",
         default_strength=1.0,
-        default_grain=0.8,
-        soften_amount=0.18,
-        local_detail_amount=0.05,
-        glow_amount=0.10,
-        halo_amount=0.55,
+        default_grain=0.3,
+        default_flash=0.35,
+        default_frame=True,
+        processing_max_side=3600,
+        exposure_ev=0.10,
+        contrast_amount=0.20,
+        gamma_lift=0.035,
+        black_compression=0.035,
+        black_lift=0.012,
+        shadow_tint=(-0.014, 0.007, 0.016),
+        midtone_tint=(0.002, 0.005, -0.003),
+        highlight_tint=(0.025, 0.012, -0.018),
+        color_matrix=((1.040, -0.020, -0.020), (-0.012, 1.032, -0.020), (-0.018, 0.012, 1.006)),
+        midtone_saturation=0.09,
+        saturation_bias=-0.025,
+        soften_amount=0.12,
+        local_detail_amount=0.03,
+        glow_amount=0.08,
+        halo_amount=0.30,
+        vignette_amount=0.09,
+        vignette_tint=(0.008, 0.003, -0.005),
+        density_texture=(0.004, 0.0045, 0.0035),
+        grain_fine_mix=0.62,
+        grain_floor=0.006,
+        grain_shadow=0.012,
+        chroma_noise_floor=0.0005,
+        chroma_noise_shadow=0.0008,
+        flash_gain=1.0,
+        flash_bias=(0.085, 0.080, 0.070),
+        flash_desaturation=0.16,
+        flash_background_falloff=0.13,
+        flash_hot_tint=(0.050, 0.035, 0.015),
     ),
     "ccd": ModeConfig(
         name="ccd",
-        default_strength=1.5,
-        default_grain=2.0,
-        soften_amount=0.52,
-        local_detail_amount=0.16,
-        glow_amount=0.17,
-        halo_amount=1.0,
+        default_strength=1.0,
+        default_grain=0.65,
+        default_flash=0.15,
+        default_frame=False,
+        processing_max_side=2300,
+        exposure_ev=0.03,
+        contrast_amount=0.15,
+        gamma_lift=0.01,
+        black_compression=0.0,
+        black_lift=0.0,
+        shadow_tint=(-0.003, 0.0, 0.007),
+        midtone_tint=(0.003, 0.001, -0.002),
+        highlight_tint=(0.006, 0.002, -0.004),
+        color_matrix=((1.035, -0.018, -0.017), (-0.010, 1.028, -0.018), (-0.014, -0.002, 1.016)),
+        midtone_saturation=0.14,
+        saturation_bias=0.0,
+        soften_amount=0.02,
+        local_detail_amount=-0.09,
+        glow_amount=0.015,
+        halo_amount=0.04,
+        vignette_amount=0.025,
+        vignette_tint=(0.0, 0.0, 0.0),
+        density_texture=(0.0, 0.0, 0.0),
+        grain_fine_mix=0.92,
+        grain_floor=0.003,
+        grain_shadow=0.016,
+        chroma_noise_floor=0.0015,
+        chroma_noise_shadow=0.006,
+        flash_gain=1.12,
+        flash_bias=(0.075, 0.082, 0.095),
+        flash_desaturation=0.08,
+        flash_background_falloff=0.17,
+        flash_hot_tint=(0.025, 0.030, 0.038),
     ),
 }
 
@@ -178,8 +259,9 @@ def _apply_direct_flash(
     rgb: np.ndarray,
     intensity: float,
     faces: list[tuple[int, int, int, int]],
+    mode_config: ModeConfig,
 ) -> np.ndarray:
-    """Simulate the hard, center-weighted flash built into an instant camera."""
+    """Simulate the hard, center-weighted flash built into a compact camera."""
     height, width = rgb.shape[:2]
     flash_mask = _build_flash_mask(height, width, faces)
 
@@ -187,17 +269,18 @@ def _apply_direct_flash(
     # subject, flattens its local contrast, and lets pale areas clip decisively.
     original_lum = _luminance(rgb)
     amount = flash_mask * intensity
-    rgb = rgb * (1.0 + 1.22 * amount) + amount * np.array([0.105, 0.100, 0.090])
+    rgb = rgb * (1.0 + mode_config.flash_gain * amount)
+    rgb += amount * np.asarray(mode_config.flash_bias)
     rgb = np.clip(rgb, 0.0, 1.0)
     flashed_lum = _luminance(rgb)
-    rgb += (flashed_lum - rgb) * np.clip(amount * 0.20, 0.0, 0.45)
+    rgb += (flashed_lum - rgb) * np.clip(amount * mode_config.flash_desaturation, 0.0, 0.45)
 
     # The flash-to-background ratio is as important as brightness: surroundings
     # fall away while the near subject reads as conspicuously overexposed.
     background = 1.0 - flash_mask
-    rgb *= 1.0 - background * 0.16 * intensity
+    rgb *= 1.0 - background * mode_config.flash_background_falloff * intensity
     hot = _smoothstep(0.62, 0.94, flashed_lum) * amount
-    rgb += hot * np.array([0.080, 0.058, 0.028])
+    rgb += hot * np.asarray(mode_config.flash_hot_tint)
 
     # Preserve a small amount of pre-flash shadow density so the center does not
     # become a featureless white circle on already-dark photos.
@@ -251,7 +334,7 @@ def _draw_debug_overlay(
         draw.text((face_x + 5, label_y + 3), label, font=small_font, fill=accent)
 
     lines = [
-        "INSTAX FILTER / DEBUG",
+        "CAMERA FILTER / DEBUG",
         f"MODE        {mode_config.name.upper()}",
         f"FACES       {len(faces)}",
         f"STRENGTH    {strength:.2f}",
@@ -259,8 +342,8 @@ def _draw_debug_overlay(
         f"FLASH       {flash:.2f}",
         f"VIGNETTE    {'ON' if vignette else 'OFF'}",
         f"SOFTEN      {min(strength * mode_config.soften_amount * 100, 78):.0f}%",
-        "SHADOW      CYAN + GREEN",
-        "HIGHLIGHT   CREAM + WARM",
+        f"DETAIL      {-mode_config.local_detail_amount * strength:+.0%}",
+        f"CHROMA NOISE {mode_config.chroma_noise_shadow * grain:.3f}",
         f"SEED        {seed}",
     ]
     padding = max(10, round(font_size * 0.65))
@@ -308,49 +391,43 @@ def apply_instax_look(
     image: Image.Image,
     *,
     mode: str = "instax",
-    strength: float = 1.0,
-    grain: float = 0.8,
+    strength: float | None = None,
+    grain: float | None = None,
     vignette: bool = True,
-    flash: float = 0.1,
+    flash: float | None = None,
     debug: bool = False,
     seed: int = 0,
 ) -> Image.Image:
-    """Return an RGB image with a natural Instax-inspired film rendering."""
+    """Return an RGB image with the selected compact-camera rendering."""
     mode_config = _mode_config(mode)
+    strength = mode_config.default_strength if strength is None else strength
+    grain = mode_config.default_grain if grain is None else grain
+    flash = mode_config.default_flash if flash is None else flash
     original_size = image.size
     alpha = image.getchannel("A") if "A" in image.getbands() else None
-    work, scale = _resize_for_processing(image.convert("RGB"))
+    work, scale = _resize_for_processing(image.convert("RGB"), mode_config.processing_max_side)
     rgb = _to_array(work)
     source = rgb.copy()
     faces = _detect_faces(source) if flash > 0 or debug else []
 
-    # Instant film has a visibly narrower latitude than a phone sensor: mids are
-    # bright, blacks keep a little emulsion density, and highlights reach a creamy
-    # shoulder early. This stronger curve is intentional at the default setting.
-    rgb = np.clip(rgb * (2.0 ** (0.18 * strength)), 0.0, 1.0)
+    # Both instant film and small-sensor JPEGs have less latitude than a modern
+    # phone, but each recipe controls its own exposure, shoulder and black density.
+    rgb = np.clip(rgb * (2.0 ** (mode_config.exposure_ev * strength)), 0.0, 1.0)
     film_s = rgb * rgb * (3.0 - 2.0 * rgb)
-    rgb += (film_s - rgb) * 0.18 * strength
-    rgb = np.power(np.clip(rgb, 0.0, 1.0), 1.0 - 0.055 * strength)
-    rgb = rgb * (1.0 - 0.045 * strength) + 0.024 * strength
+    rgb += (film_s - rgb) * mode_config.contrast_amount * strength
+    rgb = np.power(np.clip(rgb, 0.0, 1.0), 1.0 - mode_config.gamma_lift * strength)
+    rgb = rgb * (1.0 - mode_config.black_compression * strength) + mode_config.black_lift * strength
 
     lum = _luminance(rgb)
     shadows = 1.0 - _smoothstep(0.08, 0.52, lum)
     highlights = _smoothstep(0.52, 0.96, lum)
 
-    # Instax color response: cyan/green density in shadows and unmistakably creamy
-    # warm highlights. Midtones get a small green bias without pushing skin yellow.
+    # The mode map separates Instax dye response from compact-camera JPEG color.
     midtone_mask = np.clip(1.0 - shadows - highlights, 0.0, 1.0)
-    rgb += shadows * np.array([-0.030, 0.018, 0.038]) * strength
-    rgb += midtone_mask * np.array([0.002, 0.010, -0.005]) * strength
-    rgb += highlights * np.array([0.050, 0.024, -0.038]) * strength
-    color_matrix = np.array(
-        [
-            [1.060, -0.030, -0.030],
-            [-0.018, 1.048, -0.030],
-            [-0.028, 0.020, 1.008],
-        ],
-        dtype=np.float32,
-    )
+    rgb += shadows * np.asarray(mode_config.shadow_tint) * strength
+    rgb += midtone_mask * np.asarray(mode_config.midtone_tint) * strength
+    rgb += highlights * np.asarray(mode_config.highlight_tint) * strength
+    color_matrix = np.asarray(mode_config.color_matrix, dtype=np.float32)
     graded = rgb @ color_matrix.T
     rgb = rgb + (graded - rgb) * strength
 
@@ -358,11 +435,11 @@ def apply_instax_look(
     # shadows/highlights so skin and skies do not look like a phone preset.
     lum = _luminance(rgb)
     midtone = 1.0 - np.clip(np.abs(lum - 0.52) / 0.52, 0.0, 1.0)
-    saturation = 1.0 + (0.18 * midtone - 0.055) * strength
+    saturation = 1.0 + (mode_config.midtone_saturation * midtone + mode_config.saturation_bias) * strength
     rgb = lum + (rgb - lum) * saturation
 
     if flash > 0:
-        rgb = _apply_direct_flash(rgb, flash, faces)
+        rgb = _apply_direct_flash(rgb, flash, faces, mode_config)
 
     # Remove some brittle phone-camera microcontrast. The broad component mimics
     # the taking lens and Instax emulsion, while retaining enough edge definition.
@@ -389,9 +466,8 @@ def apply_instax_look(
     distance = np.sqrt(xx * xx + yy * yy)
     if vignette:
         edge = _smoothstep(0.52, 1.38, distance)[..., None]
-        rgb *= 1.0 - edge * 0.155 * strength
-        # Film edges often warm very slightly as density increases.
-        rgb += edge * np.array([0.012, 0.004, -0.008]) * strength
+        rgb *= 1.0 - edge * mode_config.vignette_amount * strength
+        rgb += edge * np.asarray(mode_config.vignette_tint) * strength
 
     # Very low-frequency density variation makes the result feel exposed in a
     # chemical sheet rather than uniformly transformed pixel-by-pixel.
@@ -402,14 +478,10 @@ def apply_instax_look(
     texture_img = texture_img.resize((width, height), Image.Resampling.BICUBIC)
     texture = (np.asarray(texture_img, dtype=np.float32) / 255.0 - 128 / 255) / (35 / 255)
     texture = texture[..., None]
-    rgb += texture * np.array([0.007, 0.008, 0.006]) * strength
+    rgb += texture * np.asarray(mode_config.density_texture) * strength
 
-    # Blend the color/tone treatment independently from grain intensity.
-    if strength < 1.0:
-        rgb = source + (rgb - source) * strength
-
-    # Two grain scales avoid uniform digital noise. Grain is stronger in shadows,
-    # but never disappears completely from highlights.
+    # Fine/coarse and luminance/chroma noise ratios distinguish emulsion texture
+    # from the colored high-ISO noise of a small CCD and its early JPEG pipeline.
     if grain > 0:
         fine = rng.normal(0.0, 1.0, (height, width, 1)).astype(np.float32)
         coarse_h, coarse_w = max(2, height // 3), max(2, width // 3)
@@ -417,13 +489,15 @@ def apply_instax_look(
         coarse_img = Image.fromarray(np.uint8(np.clip(coarse * 32 + 128, 0, 255)[..., 0]), "L")
         coarse_img = coarse_img.resize((width, height), Image.Resampling.BICUBIC)
         coarse = (_to_array(coarse_img.convert("RGB"))[..., :1] - 128 / 255) / (32 / 255)
-        grain_pattern = fine * 0.72 + coarse * 0.28
-        grain_weight = 0.015 + 0.027 * (1.0 - np.clip(_luminance(rgb), 0.0, 1.0))
+        grain_pattern = fine * mode_config.grain_fine_mix + coarse * (1.0 - mode_config.grain_fine_mix)
+        inverse_lum = 1.0 - np.clip(_luminance(rgb), 0.0, 1.0)
+        grain_weight = mode_config.grain_floor + mode_config.grain_shadow * inverse_lum
         rgb += grain_pattern * grain_weight * grain
 
         chroma = rng.normal(0.0, 1.0, (height, width, 3)).astype(np.float32)
         chroma -= np.mean(chroma, axis=2, keepdims=True)
-        rgb += chroma * 0.0032 * grain
+        chroma_weight = mode_config.chroma_noise_floor + mode_config.chroma_noise_shadow * inverse_lum
+        rgb += chroma * chroma_weight * grain
 
     result = _to_image(rgb)
     if scale != 1.0:
@@ -462,10 +536,10 @@ def add_instax_frame(image: Image.Image, *, seed: int = 0) -> Image.Image:
     paper_size = INSTAX_PAPER_PORTRAIT if portrait else INSTAX_PAPER_PORTRAIT[::-1]
     fitted = ImageOps.fit(image, image_size, method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
 
-    # Warm, very slightly mottled stock looks more physical than a flat #fff frame.
+    # Instax stock is near-neutral white with only very subtle physical variation.
     rng = np.random.default_rng(seed ^ 0x49A37B1D)
-    base_color = np.array([247.0, 244.0, 234.0], dtype=np.float32)
-    paper_noise = rng.normal(0.0, 0.7, (paper_size[1], paper_size[0], 1)).astype(np.float32)
+    base_color = np.array([250.0, 249.0, 246.0], dtype=np.float32)
+    paper_noise = rng.normal(0.0, 0.35, (paper_size[1], paper_size[0], 1)).astype(np.float32)
     paper = np.uint8(np.clip(base_color + paper_noise, 0, 255))
     framed = Image.fromarray(paper, "RGB")
 
@@ -477,8 +551,8 @@ def add_instax_frame(image: Image.Image, *, seed: int = 0) -> Image.Image:
     return framed
 
 
-def _default_output(input_path: Path) -> Path:
-    return input_path.with_name(f"{input_path.stem}_instax{input_path.suffix.lower()}")
+def _default_output(input_path: Path, mode: str) -> Path:
+    return input_path.with_name(f"{input_path.stem}_{mode}{input_path.suffix.lower()}")
 
 
 def _seed_for(path: Path) -> int:
@@ -508,29 +582,29 @@ def _save(image: Image.Image, output_path: Path, *, quality: int) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="给照片添加富士拍立得或 CCD 柔焦质感")
+    parser = argparse.ArgumentParser(description="模拟富士 Instax Mini 或 2000 年代 CCD 卡片机成像")
     parser.add_argument("input", type=Path, help="本地图片路径")
-    parser.add_argument("-o", "--output", type=Path, help="输出路径（默认：原目录下 *_instax）")
+    parser.add_argument("-o", "--output", type=Path, help="输出路径（默认：原目录下 *_{mode}）")
     parser.add_argument(
         "--mode",
         choices=tuple(MODE_CONFIGS),
         default="instax",
-        help="成像模式：instax 清晰拍立得，ccd 为原有重柔焦效果（默认 instax）",
+        help="成像模式：instax 拍立得，ccd 为 2000 年代卡片机（默认 instax）",
     )
-    parser.add_argument("--strength", type=float, help="调色强度，0–1.5（默认：instax 1.0，ccd 1.5）")
-    parser.add_argument("--grain", type=float, help="颗粒强度，0–2（默认：instax 0.8，ccd 2.0）")
+    parser.add_argument("--strength", type=float, help="成像特征强度，0–1.5（两种模式默认均为 1.0）")
+    parser.add_argument("--grain", type=float, help="颗粒或传感器噪声，0–2（默认：instax 0.3，ccd 0.65）")
     frame_group = parser.add_mutually_exclusive_group()
-    frame_group.add_argument("--frame", dest="frame", action="store_true", default=True, help="输出 Instax Mini 尺寸相纸（默认）")
+    frame_group.add_argument("--frame", dest="frame", action="store_true", default=None, help="裁切并添加 Instax Mini 相纸白边")
     frame_group.add_argument("--no-frame", dest="frame", action="store_false", help="不裁切、不添加相纸白边")
     parser.add_argument("--no-vignette", action="store_true", help="关闭轻微暗角")
     parser.add_argument(
         "--flash",
         nargs="?",
         const=1.0,
-        default=0.1,
+        default=None,
         type=float,
         metavar="INTENSITY",
-        help="模拟拍立得直闪，可选强度 0–2（默认 0.1，省略数值时为 1.0）",
+        help="模拟机顶直闪，可选强度 0–2（默认：instax 0.35，ccd 0.15；省略数值时为 1.0）",
     )
     parser.add_argument("--debug", action="store_true", help="标出人脸区域并显示当前调色参数")
     parser.add_argument("--seed", type=int, help="颗粒与相纸纹理随机种子（默认由文件路径稳定生成）")
@@ -543,6 +617,8 @@ def main() -> None:
     mode_config = _mode_config(args.mode)
     strength = args.strength if args.strength is not None else mode_config.default_strength
     grain = args.grain if args.grain is not None else mode_config.default_grain
+    flash = args.flash if args.flash is not None else mode_config.default_flash
+    frame = args.frame if args.frame is not None else mode_config.default_frame
     input_path = args.input.expanduser().resolve()
     if not input_path.is_file():
         raise SystemExit(f"找不到输入文件：{input_path}")
@@ -552,12 +628,12 @@ def main() -> None:
         raise SystemExit("--strength 必须在 0–1.5 之间")
     if not 0.0 <= grain <= 2.0:
         raise SystemExit("--grain 必须在 0–2 之间")
-    if not 0.0 <= args.flash <= 2.0:
+    if not 0.0 <= flash <= 2.0:
         raise SystemExit("--flash 强度必须在 0–2 之间")
     if not 1 <= args.quality <= 100:
         raise SystemExit("--quality 必须在 1–100 之间")
 
-    output_path = (args.output.expanduser() if args.output else _default_output(input_path)).resolve()
+    output_path = (args.output.expanduser() if args.output else _default_output(input_path, args.mode)).resolve()
     if output_path == input_path:
         raise SystemExit("输出路径不能与输入文件相同，以免覆盖原图")
     if output_path.suffix.lower() not in SUPPORTED_SUFFIXES:
@@ -568,7 +644,7 @@ def main() -> None:
     try:
         with Image.open(input_path) as opened:
             image = ImageOps.exif_transpose(opened)
-            if args.frame:
+            if frame:
                 image = fit_instax_image(image)
             result = apply_instax_look(
                 image,
@@ -576,11 +652,11 @@ def main() -> None:
                 strength=strength,
                 grain=grain,
                 vignette=not args.no_vignette,
-                flash=args.flash,
+                flash=flash,
                 debug=args.debug,
                 seed=args.seed if args.seed is not None else _seed_for(input_path),
             )
-        if args.frame:
+        if frame:
             result = add_instax_frame(result, seed=args.seed if args.seed is not None else _seed_for(input_path))
         _save(result, output_path, quality=args.quality)
     except (OSError, ValueError) as exc:
