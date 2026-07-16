@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Local photos and generated previews
+*.heic
+*.HEIC
+*.heif
+*.HEIF
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.tif
+*.tiff
+
+# Local scratch command
+/t.sh
