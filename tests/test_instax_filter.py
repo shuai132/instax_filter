@@ -107,6 +107,12 @@ class InstaxFilterTests(unittest.TestCase):
         self.assertGreater(dream.glow_amount, MODE_CONFIGS["lofi"].glow_amount)
         self.assertGreater(dream.halo_amount, MODE_CONFIGS["lofi"].halo_amount)
 
+    def test_noir_mode_outputs_neutral_monochrome(self) -> None:
+        noir = np.asarray(apply_instax_look(self.image, mode="noir", grain=0, flash=0), dtype=np.int16)
+        self.assertLessEqual(np.max(np.abs(noir[..., 0] - noir[..., 1])), 1)
+        self.assertLessEqual(np.max(np.abs(noir[..., 1] - noir[..., 2])), 1)
+        self.assertGreater(MODE_CONFIGS["noir"].contrast_amount, MODE_CONFIGS["chrome"].contrast_amount)
+
     def test_flash_brightens_center_more_than_edges(self) -> None:
         midgray = Image.new("RGB", (120, 160), (90, 90, 90))
         baseline = np.asarray(
