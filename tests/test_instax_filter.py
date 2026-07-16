@@ -25,8 +25,9 @@ class InstaxFilterTests(unittest.TestCase):
         args = build_parser().parse_args(["photo.jpg"])
         self.assertEqual(args.strength, 1.5)
         self.assertEqual(args.grain, 2.0)
-        self.assertFalse(args.flash)
-        self.assertTrue(build_parser().parse_args(["photo.jpg", "--flash"]).flash)
+        self.assertEqual(args.flash, 0.0)
+        self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash"]).flash, 1.0)
+        self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash", "1.7"]).flash, 1.7)
 
     def test_flash_brightens_center_more_than_edges(self) -> None:
         midgray = Image.new("RGB", (120, 160), (90, 90, 90))
@@ -35,7 +36,7 @@ class InstaxFilterTests(unittest.TestCase):
             dtype=np.float32,
         )
         flashed = np.asarray(
-            apply_instax_look(midgray, strength=1, grain=0, vignette=False, flash=True),
+            apply_instax_look(midgray, strength=1, grain=0, vignette=False, flash=1.0),
             dtype=np.float32,
         )
         delta = flashed.mean(axis=2) - baseline.mean(axis=2)
@@ -43,6 +44,12 @@ class InstaxFilterTests(unittest.TestCase):
         edge_delta = np.concatenate((delta[:20].ravel(), delta[-20:].ravel())).mean()
         self.assertGreater(center_delta, 80)
         self.assertGreater(center_delta, edge_delta + 60)
+
+    def test_flash_intensity_changes_exposure(self) -> None:
+        dark = Image.new("RGB", (120, 160), (48, 48, 48))
+        low = np.asarray(apply_instax_look(dark, strength=1, grain=0, flash=0.4), dtype=np.float32)
+        high = np.asarray(apply_instax_look(dark, strength=1, grain=0, flash=1.6), dtype=np.float32)
+        self.assertGreater(high[55:105, 40:80].mean(), low[55:105, 40:80].mean() + 45)
 
     def test_seed_makes_grain_repeatable(self) -> None:
         first = apply_instax_look(self.image, seed=123)
