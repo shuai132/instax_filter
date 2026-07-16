@@ -5,7 +5,14 @@ from tempfile import TemporaryDirectory
 import numpy as np
 from PIL import Image
 
-from instax_filter import _save, add_instax_frame, apply_instax_look, build_parser, fit_instax_image
+from instax_filter import (
+    _build_flash_mask,
+    _save,
+    add_instax_frame,
+    apply_instax_look,
+    build_parser,
+    fit_instax_image,
+)
 
 
 class InstaxFilterTests(unittest.TestCase):
@@ -50,6 +57,12 @@ class InstaxFilterTests(unittest.TestCase):
         low = np.asarray(apply_instax_look(dark, strength=1, grain=0, flash=0.4), dtype=np.float32)
         high = np.asarray(apply_instax_look(dark, strength=1, grain=0, flash=1.6), dtype=np.float32)
         self.assertGreater(high[55:105, 40:80].mean(), low[55:105, 40:80].mean() + 45)
+
+    def test_face_flash_mask_tracks_each_detected_face(self) -> None:
+        mask = _build_flash_mask(200, 300, [(35, 35, 40, 40), (220, 45, 35, 35)])[..., 0]
+        self.assertGreater(mask[55, 55], 0.9)
+        self.assertGreater(mask[62, 237], 0.9)
+        self.assertLess(mask[190, 150], 0.05)
 
     def test_seed_makes_grain_repeatable(self) -> None:
         first = apply_instax_look(self.image, seed=123)

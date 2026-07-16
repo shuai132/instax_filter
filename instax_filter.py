@@ -7,6 +7,7 @@ import argparse
 import hashlib
 from pathlib import Path
 
+import cv2
 import numpy as np
 from PIL import Image, ImageFilter, ImageOps
 from pillow_heif import register_heif_opener
@@ -41,14 +42,102 @@ def _blur(rgb: np.ndarray, radius: float) -> np.ndarray:
     return _to_array(_to_image(rgb).filter(ImageFilter.GaussianBlur(radius=radius)))
 
 
-def _apply_direct_flash(rgb: np.ndarray, intensity: float) -> np.ndarray:
+def _intersection_over_union(first: tuple[int, int, int, int], second: tuple[int, int, int, int]) -> float:
+    ax, ay, aw, ah = first
+    bx, by, bw, bh = second
+    overlap_w = max(0, min(ax + aw, bx + bw) - max(ax, bx))
+    overlap_h = max(0, min(ay + ah, by + bh) - max(ay, by))
+    overlap = overlap_w * overlap_h
+    union = aw * ah + bw * bh - overlap
+    return overlap / union if union else 0.0
+
+
+def _detect_faces(rgb: np.ndarray) -> list[tuple[int, int, int, int]]:
+    """Detect frontal and profile faces using OpenCV's bundled classifiers."""
+    pixels = np.uint8(np.clip(rgb, 0.0, 1.0) * 255.0 + 0.5)
+    gray = cv2.cvtColor(pixels, cv2.COLOR_RGB2GRAY)
+    gray = cv2.equalizeHist(gray)
+    height, width = gray.shape
+    minimum = max(28, round(min(height, width) * 0.055))
+    cascade_dir = Path(cv2.data.haarcascades)
+    candidates: list[tuple[int, int, int, int]] = []
+
+    cascade_names = ("haarcascade_frontalface_alt2.xml", "haarcascade_profileface.xml")
+    for name in cascade_names:
+        classifier = cv2.CascadeClassifier(str(cascade_dir / name))
+        if classifier.empty():
+            continue
+        detections = classifier.detectMultiScale(
+            gray,
+            scaleFactor=1.08,
+            minNeighbors=6,
+            minSize=(minimum, minimum),
+            flags=cv2.CASCADE_SCALE_IMAGE,
+        )
+        candidates.extend(tuple(map(int, face)) for face in detections)
+
+        # The profile classifier detects only one facing direction, so mirror the
+        # image and map those results back for the opposite profile.
+        if "profile" in name:
+            mirrored = cv2.flip(gray, 1)
+            mirrored_faces = classifier.detectMultiScale(
+                mirrored,
+                scaleFactor=1.08,
+                minNeighbors=6,
+                minSize=(minimum, minimum),
+                flags=cv2.CASCADE_SCALE_IMAGE,
+            )
+            candidates.extend((width - int(x) - int(w), int(y), int(w), int(h)) for x, y, w, h in mirrored_faces)
+
+    # Merge duplicates produced by frontal/profile passes, preferring larger and
+    # therefore usually more stable detections.
+    faces: list[tuple[int, int, int, int]] = []
+    for candidate in sorted(candidates, key=lambda box: box[2] * box[3], reverse=True):
+        if all(_intersection_over_union(candidate, kept) < 0.28 for kept in faces):
+            faces.append(candidate)
+    return faces
+
+
+def _build_flash_mask(
+    height: int,
+    width: int,
+    faces: list[tuple[int, int, int, int]],
+) -> np.ndarray:
+    yy, xx = np.mgrid[0:height, 0:width]
+    if not faces:
+        x = (xx / max(width - 1, 1) - 0.5) / 0.58
+        y = (yy / max(height - 1, 1) - 0.43) / 0.68
+        return np.exp(-2.15 * (x * x + y * y)).astype(np.float32)[..., None]
+
+    combined = np.zeros((height, width), dtype=np.float32)
+    for face_x, face_y, face_w, face_h in faces:
+        center_x = face_x + face_w * 0.5
+        # Shift the larger halo below the face to include neck and upper torso.
+        center_y = face_y + face_h * 1.05
+        radius_x = max(face_w * 1.65, width * 0.10)
+        radius_y = max(face_h * 2.25, height * 0.13)
+        halo = np.exp(
+            -1.35 * (((xx - center_x) / radius_x) ** 2 + ((yy - center_y) / radius_y) ** 2)
+        ).astype(np.float32)
+
+        face_center_y = face_y + face_h * 0.5
+        core = np.exp(
+            -1.8
+            * (
+                ((xx - center_x) / max(face_w * 0.72, 1.0)) ** 2
+                + ((yy - face_center_y) / max(face_h * 0.82, 1.0)) ** 2
+            )
+        ).astype(np.float32)
+        person_mask = np.maximum(halo * 0.88, core)
+        combined = 1.0 - (1.0 - combined) * (1.0 - person_mask)
+    return np.clip(combined, 0.0, 1.0)[..., None]
+
+
+def _apply_direct_flash(rgb: np.ndarray, intensity: float, face_source: np.ndarray) -> np.ndarray:
     """Simulate the hard, center-weighted flash built into an instant camera."""
     height, width = rgb.shape[:2]
-    yy, xx = np.mgrid[0:height, 0:width]
-    x = (xx / max(width - 1, 1) - 0.5) / 0.58
-    y = (yy / max(height - 1, 1) - 0.43) / 0.68
-    distance_sq = x * x + y * y
-    flash_mask = np.exp(-2.15 * distance_sq).astype(np.float32)[..., None]
+    faces = _detect_faces(face_source)
+    flash_mask = _build_flash_mask(height, width, faces)
 
     # A direct flash raises exposure most strongly around a centered foreground
     # subject, flattens its local contrast, and lets pale areas clip decisively.
@@ -137,7 +226,7 @@ def apply_instax_look(
     rgb = lum + (rgb - lum) * saturation
 
     if flash > 0:
-        rgb = _apply_direct_flash(rgb, flash)
+        rgb = _apply_direct_flash(rgb, flash, source)
 
     # Remove some brittle phone-camera microcontrast. The broad component mimics
     # the taking lens and Instax emulsion, while retaining enough edge definition.
