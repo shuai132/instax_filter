@@ -41,6 +41,8 @@ class InstaxFilterTests(unittest.TestCase):
         self.assertIsNone(args.grain)
         self.assertIsNone(args.flash)
         self.assertIsNone(args.frame)
+        self.assertTrue(build_parser().parse_args(["photo.jpg", "--frame"]).frame)
+        self.assertFalse(build_parser().parse_args(["photo.jpg", "--no-frame"]).frame)
         self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash"]).flash, 1.0)
         self.assertEqual(build_parser().parse_args(["photo.jpg", "--flash", "1.7"]).flash, 1.7)
         self.assertFalse(args.debug)
@@ -140,10 +142,8 @@ class InstaxFilterTests(unittest.TestCase):
         ccd_chroma = np.std(ccd - ccd.mean(axis=2, keepdims=True))
         self.assertGreater(ccd_chroma, instax_chroma * 2)
 
-    def test_modes_have_camera_appropriate_frame_defaults(self) -> None:
-        self.assertTrue(MODE_CONFIGS["instax"].default_frame)
-        self.assertFalse(MODE_CONFIGS["ccd"].default_frame)
-        self.assertTrue(MODE_CONFIGS["lofi"].default_frame)
+    def test_every_mode_preserves_original_dimensions_by_default(self) -> None:
+        self.assertTrue(all(not config.default_frame for config in MODE_CONFIGS.values()))
 
     def test_lofi_mode_preserves_original_heavy_recipe(self) -> None:
         lofi = MODE_CONFIGS["lofi"]

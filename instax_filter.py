@@ -66,7 +66,7 @@ MODE_CONFIGS = {
         default_strength=1.0,
         default_grain=0.3,
         default_flash=0.35,
-        default_frame=True,
+        default_frame=False,
         processing_max_side=3600,
         exposure_ev=0.10,
         contrast_amount=0.20,
@@ -138,7 +138,7 @@ MODE_CONFIGS = {
         default_strength=1.5,
         default_grain=2.0,
         default_flash=0.1,
-        default_frame=True,
+        default_frame=False,
         processing_max_side=3600,
         exposure_ev=0.18,
         contrast_amount=0.18,
@@ -352,7 +352,7 @@ MODE_CONFIGS = {
 }
 
 MODE_DESCRIPTIONS = {
-    "instax": "拍立得风格：适度反差、轻微软化、暖高光和相纸白边",
+    "instax": "拍立得风格：适度反差、轻微软化、暖高光和细微乳剂纹理",
     "ccd": "2000 年代 CCD 卡片机：清晰边缘、硬直闪和暗部彩噪",
     "lofi": "重度 Lo-fi：重柔焦、粗颗粒、强辉光和青冷阴影",
     "disposable": "一次性胶片机：暖色硬直闪、绿色暗部和明显失光",
