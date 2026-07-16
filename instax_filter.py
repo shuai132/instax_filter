@@ -169,6 +169,42 @@ MODE_CONFIGS = {
         flash_background_falloff=0.16,
         flash_hot_tint=(0.080, 0.058, 0.028),
     ),
+    "disposable": ModeConfig(
+        name="disposable",
+        default_strength=1.0,
+        default_grain=0.9,
+        default_flash=0.55,
+        default_frame=False,
+        processing_max_side=3000,
+        exposure_ev=0.12,
+        contrast_amount=0.24,
+        gamma_lift=0.02,
+        black_compression=0.0,
+        black_lift=0.006,
+        shadow_tint=(-0.008, 0.018, 0.003),
+        midtone_tint=(0.003, 0.004, -0.004),
+        highlight_tint=(0.030, 0.016, -0.020),
+        color_matrix=((1.050, -0.025, -0.025), (-0.012, 1.035, -0.023), (-0.020, 0.006, 1.014)),
+        midtone_saturation=0.12,
+        saturation_bias=-0.02,
+        soften_amount=0.08,
+        local_detail_amount=0.02,
+        glow_amount=0.05,
+        halo_amount=0.22,
+        vignette_amount=0.14,
+        vignette_tint=(0.012, 0.004, -0.010),
+        density_texture=(0.004, 0.0045, 0.0035),
+        grain_fine_mix=0.58,
+        grain_floor=0.009,
+        grain_shadow=0.018,
+        chroma_noise_floor=0.0008,
+        chroma_noise_shadow=0.0012,
+        flash_gain=1.18,
+        flash_bias=(0.100, 0.092, 0.075),
+        flash_desaturation=0.22,
+        flash_background_falloff=0.20,
+        flash_hot_tint=(0.075, 0.048, 0.020),
+    ),
 }
 
 
@@ -618,17 +654,17 @@ def _save(image: Image.Image, output_path: Path, *, quality: int) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="模拟 Instax、CCD 卡片机或重颗粒 Lo-fi 成像")
+    parser = argparse.ArgumentParser(description="模拟多种胶片、拍立得和数码相机成像")
     parser.add_argument("input", type=Path, help="本地图片路径")
     parser.add_argument("-o", "--output", type=Path, help="输出路径（默认：原目录下 *_{mode}）")
     parser.add_argument(
         "--mode",
         choices=tuple(MODE_CONFIGS),
         default="instax",
-        help="成像模式：instax 拍立得、ccd 卡片机、lofi 重颗粒柔焦（默认 instax）",
+        help="选择成像预设（默认 instax；各模式说明见 README）",
     )
-    parser.add_argument("--strength", type=float, help="成像特征强度，0–1.5（默认：instax/ccd 1.0，lofi 1.5）")
-    parser.add_argument("--grain", type=float, help="颗粒或传感器噪声，0–2（默认：instax 0.3，ccd 0.65，lofi 2.0）")
+    parser.add_argument("--strength", type=float, help="成像特征强度，0–1.5（默认值按模式）")
+    parser.add_argument("--grain", type=float, help="颗粒或传感器噪声，0–2（默认值按模式）")
     frame_group = parser.add_mutually_exclusive_group()
     frame_group.add_argument("--frame", dest="frame", action="store_true", default=None, help="裁切并添加 Instax Mini 相纸白边")
     frame_group.add_argument("--no-frame", dest="frame", action="store_false", help="不裁切、不添加相纸白边")
@@ -640,7 +676,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         type=float,
         metavar="INTENSITY",
-        help="模拟机顶直闪，可选强度 0–2（默认：instax 0.35，ccd 0.15，lofi 0.1；省略数值时为 1.0）",
+        help="模拟机顶直闪，可选强度 0–2（默认值按模式；省略数值时为 1.0）",
     )
     parser.add_argument("--debug", action="store_true", help="标出人脸区域并显示当前调色参数")
     parser.add_argument("--seed", type=int, help="颗粒与相纸纹理随机种子（默认由文件路径稳定生成）")

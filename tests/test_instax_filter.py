@@ -87,6 +87,13 @@ class InstaxFilterTests(unittest.TestCase):
         self.assertEqual(lofi.local_detail_amount, 0.16)
         self.assertEqual(lofi.glow_amount, 0.17)
 
+    def test_disposable_mode_uses_hard_flash_and_film_grain(self) -> None:
+        disposable = MODE_CONFIGS["disposable"]
+        self.assertEqual(disposable.default_grain, 0.9)
+        self.assertEqual(disposable.default_flash, 0.55)
+        self.assertGreater(disposable.vignette_amount, MODE_CONFIGS["instax"].vignette_amount)
+        self.assertGreater(disposable.flash_background_falloff, MODE_CONFIGS["instax"].flash_background_falloff)
+
     def test_flash_brightens_center_more_than_edges(self) -> None:
         midgray = Image.new("RGB", (120, 160), (90, 90, 90))
         baseline = np.asarray(
