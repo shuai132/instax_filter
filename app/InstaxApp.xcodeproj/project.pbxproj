@@ -330,6 +330,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 0.1.0;
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(inherited)",
 					"-Wall",
@@ -440,6 +441,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 0.1.0;
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(inherited)",
 					"-Wall",

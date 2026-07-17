@@ -30,6 +30,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ccforge.instax
         PRODUCT_NAME: Instax
+        MARKETING_VERSION: 0.1.0
         ARCHS: arm64
         INSTAX_OPENCV_ROOT: "$(SRCROOT)/../cpp/.deps/opencv-app-install"
         GENERATE_INFOPLIST_FILE: YES
