@@ -1,0 +1,102 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['*']
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Cache OpenCV
+        id: opencv-cache
+        uses: actions/cache@v4
+        with:
+          path: cpp/.deps/opencv-app-install
+          key: ${{ runner.os }}-${{ runner.arch }}-opencv-4.13.0-macos14-${{ hashFiles('app/scripts/build-opencv.sh') }}
+
+      - name: Build OpenCV
+        if: steps.opencv-cache.outputs.cache-hit != 'true'
+        run: app/scripts/build-opencv.sh
+
+      - name: Build app
+        run: app/build.sh --release
+
+      - name: Sign app
+        run: |
+          codesign \
+            --force \
+            --sign - \
+            --entitlements app/InstaxApp/InstaxApp.entitlements \
+            app/build/Build/Products/Release/Instax.app
+          codesign \
+            --verify \
+            --deep \
+            --strict \
+            --verbose=2 \
+            app/build/Build/Products/Release/Instax.app
+
+      - name: Package app
+        run: |
+          mkdir -p dist
+          ditto \
+            -c \
+            -k \
+            --sequesterRsrc \
+            --keepParent \
+            app/build/Build/Products/Release/Instax.app \
+            dist/Instax-macOS-arm64.zip
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Instax-macOS-arm64
+          path: dist/Instax-macOS-arm64.zip
+          retention-days: 7
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Instax-macOS-arm64
+          path: dist
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload \
+              "$GITHUB_REF_NAME" \
+              dist/Instax-macOS-arm64.zip \
+              --clobber
+          else
+            gh release create \
+              "$GITHUB_REF_NAME" \
+              dist/Instax-macOS-arm64.zip \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi
