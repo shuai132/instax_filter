@@ -1,0 +1,106 @@
+name: InstaxApp
+
+options:
+  minimumXcodeGenVersion: 2.42.0
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    CLANG_CXX_LANGUAGE_STANDARD: c++20
+    CLANG_CXX_LIBRARY: libc++
+    SWIFT_VERSION: 5.0
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+
+targets:
+  InstaxApp:
+    type: application
+    platform: macOS
+    sources:
+      - path: InstaxApp
+      - path: InstaxBridge
+      - path: ../cpp/src/frame_renderer.cpp
+      - path: ../cpp/src/image_processor.cpp
+      - path: ../cpp/src/mode_config.cpp
+      - path: ../cpp/src/processing_engine.cpp
+    resources:
+      - path: InstaxApp/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ccforge.instax
+        PRODUCT_NAME: Instax
+        ARCHS: arm64
+        INSTAX_OPENCV_ROOT: "$(SRCROOT)/../cpp/.deps/opencv-app-install"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Instax
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.photography
+        INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026"
+        SWIFT_OBJC_BRIDGING_HEADER: InstaxBridge/InstaxApp-Bridging-Header.h
+        HEADER_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(SRCROOT)/../cpp/include"
+        SYSTEM_HEADER_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(INSTAX_OPENCV_ROOT)/include/opencv4"
+        OTHER_LDFLAGS:
+          - "$(inherited)"
+          - "$(INSTAX_OPENCV_ROOT)/lib/libopencv_objdetect.a"
+          - "$(INSTAX_OPENCV_ROOT)/lib/libopencv_calib3d.a"
+          - "$(INSTAX_OPENCV_ROOT)/lib/libopencv_features2d.a"
+          - "$(INSTAX_OPENCV_ROOT)/lib/libopencv_imgproc.a"
+          - "$(INSTAX_OPENCV_ROOT)/lib/libopencv_flann.a"
+          - "$(INSTAX_OPENCV_ROOT)/lib/libopencv_core.a"
+          - "$(INSTAX_OPENCV_ROOT)/lib/opencv4/3rdparty/libzlib.a"
+          - "$(INSTAX_OPENCV_ROOT)/lib/opencv4/3rdparty/libittnotify.a"
+          - "$(INSTAX_OPENCV_ROOT)/lib/opencv4/3rdparty/libtegra_hal.a"
+          - "$(INSTAX_OPENCV_ROOT)/lib/opencv4/3rdparty/libkleidicv_hal.a"
+          - "$(INSTAX_OPENCV_ROOT)/lib/opencv4/3rdparty/libkleidicv_thread.a"
+          - "$(INSTAX_OPENCV_ROOT)/lib/opencv4/3rdparty/libkleidicv.a"
+          - "-ldl"
+        OTHER_CPLUSPLUSFLAGS:
+          - "$(inherited)"
+          - "-Wall"
+          - "-Wextra"
+          - "-Wpedantic"
+        CODE_SIGN_ENTITLEMENTS: InstaxApp/InstaxApp.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+    dependencies:
+      - sdk: AppKit.framework
+      - sdk: Accelerate.framework
+      - sdk: CoreGraphics.framework
+      - sdk: ImageIO.framework
+      - sdk: UniformTypeIdentifiers.framework
+
+  InstaxAppTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: InstaxAppTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ccforge.instax.tests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_OBJC_BRIDGING_HEADER: InstaxBridge/InstaxApp-Bridging-Header.h
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Instax.app/Contents/MacOS/Instax"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        HEADER_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(SRCROOT)/InstaxBridge"
+    dependencies:
+      - target: InstaxApp
+
+schemes:
+  InstaxApp:
+    build:
+      targets:
+        InstaxApp: all
+        InstaxAppTests: [test]
+    test:
+      config: Debug
+      targets:
+        - InstaxAppTests
+    run:
+      config: Debug
+    archive:
+      config: Release
