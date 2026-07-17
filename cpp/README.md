@@ -1,6 +1,6 @@
 # Instax Filter C++
 
-Python 版本的原生 C++/OpenCV 实现。支持相同的八种模式、颗粒、暗角、直闪、相纸边框和固定随机种子。
+Instax Filter 的 C++/OpenCV 图像处理核心，供 macOS App 与独立 CLI 共用。支持八种模式、颗粒、暗角、直闪、相纸边框和固定随机种子。
 
 ## 构建
 

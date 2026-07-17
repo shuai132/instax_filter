@@ -41,7 +41,17 @@ def main() -> None:
     Image.fromarray(pixels, "RGB").save(input_path)
 
     common = ["--mode", "instax", "--seed", "42", "--flash", "0", "--grain", "0.3"]
-    python_command = ["uv", "run", "instax-filter", str(input_path), "-o", str(python_path), *common]
+    python_command = [
+        "uv",
+        "run",
+        "--project",
+        "python",
+        "instax-filter",
+        str(input_path),
+        "-o",
+        str(python_path),
+        *common,
+    ]
     cpp_command = [str(args.build), str(input_path), "-o", str(cpp_path), *common]
     python_times = timed(python_command, repeats=args.repeats)
     cpp_times = timed(cpp_command, repeats=args.repeats)

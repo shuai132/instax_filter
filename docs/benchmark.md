@@ -42,13 +42,13 @@ C++:    0.430, 0.431, 0.434, 0.431, 0.432, 0.433, 0.433, 0.427, 0.431, 0.429
 ```bash
 cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release
 cmake --build cpp/build --config Release -j
-uv run --frozen python docs/benchmark.py
+uv run --project python --frozen python docs/benchmark.py
 ```
 
 可通过 `--repeats`、`--warmups`、`--input` 和 `--cpp` 修改采样次数、预热次数、测试图和 C++ 可执行文件路径。例如快速检查：
 
 ```bash
-uv run --frozen python docs/benchmark.py --repeats 3 --warmups 1
+uv run --project python --frozen python docs/benchmark.py --repeats 3 --warmups 1
 ```
 
 基准脚本将输出写入系统临时目录并在结束后清理，不会覆盖测试图，也不会把生成图片留在仓库中。

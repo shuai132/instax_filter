@@ -70,7 +70,7 @@ def main() -> None:
         commands = {
             "python": [
                 sys.executable,
-                str(ROOT / "instax_filter.py"),
+                str(ROOT / "python" / "instax_filter.py"),
                 str(input_path),
                 "-o",
                 str(temporary_path / "python.jpg"),

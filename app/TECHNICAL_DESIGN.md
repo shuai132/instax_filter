@@ -158,33 +158,23 @@ macOS 侧使用 ImageIO/CoreGraphics 负责文件编解码，OpenCV 只负责像
 
 若目标包含站外分发，需要 Developer ID 签名、公证和 hardened runtime；若目标是 Mac App Store，还要进一步校验沙盒、隐私清单和依赖许可。两种渠道可以共用绝大多数代码，但发布脚本不同。
 
-## 7. 建议目录结构
+## 7. 目录结构
 
 ```text
-app/
-├── TECHNICAL_DESIGN.md
-├── InstaxApp.xcodeproj/
-├── InstaxApp/
-│   ├── App/
-│   ├── Features/Editor/
-│   ├── Services/
-│   ├── Resources/
-│   │   └── Cascades/
-│   └── SupportingFiles/
-├── InstaxBridge/
-│   ├── include/InstaxBridge.h
-│   └── InstaxBridge.mm
+app/                      # 主产品与构建入口
+├── InstaxApp/            # SwiftUI/AppKit 界面与资源
+├── InstaxBridge/         # Objective-C++ bridge
 ├── InstaxAppTests/
 └── scripts/
-    └── build-opencv.sh
-
-cpp/
-├── include/instax/       # 共用 C++ 公开接口
-├── src/                  # 共用算法实现
-└── tests/                # C++ 核心测试（建议新增）
+cpp/                      # App 共用的 C++/OpenCV 核心
+├── include/instax/
+└── src/
+python/                   # 独立 Python 参考实现
+├── instax/
+└── tests/
 ```
 
-App 工程文件放在 `app/`，共用算法仍留在 `cpp/`，避免产生一份 App 专属的 C++ 副本。
+`app/`、`cpp/`、`python/` 在仓库顶层并列。App 是最终产品和主要入口；共用算法留在 `cpp/`，避免产生一份 App 专属的 C++ 副本；Python 实现独立放在 `python/`，不参与 App 构建。
 
 ## 8. 第一版产品流程
 
