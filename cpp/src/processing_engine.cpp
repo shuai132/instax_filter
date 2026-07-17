@@ -230,8 +230,10 @@ static cv::Mat3f apply_look(const cv::Mat3f& input, const ModeConfig& mode, floa
     if(scale!=1) cv::resize(rgb,rgb,original_size,0,0,cv::INTER_LANCZOS4);
     if(debug_faces){
         debug_faces->clear();
-        for(auto face:faces){ face.x=std::lround(face.x/scale); face.y=std::lround(face.y/scale);
-            face.width=std::lround(face.width/scale); face.height=std::lround(face.height/scale); debug_faces->push_back(face); }
+        for(auto face:faces){ face.x=static_cast<int>(std::lround(face.x/scale));
+            face.y=static_cast<int>(std::lround(face.y/scale));
+            face.width=static_cast<int>(std::lround(face.width/scale));
+            face.height=static_cast<int>(std::lround(face.height/scale)); debug_faces->push_back(face); }
     }
     return rgb;
 }

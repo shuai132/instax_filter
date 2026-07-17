@@ -7,23 +7,31 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc imgcodecs objdetect)
 
-add_executable(instax-filter-cpp
-    src/application.cpp
-    src/cli_options.cpp
+add_library(instax-core STATIC
     src/frame_renderer.cpp
-    src/main.cpp
+    src/image_processor.cpp
     src/mode_config.cpp
     src/processing_engine.cpp
 )
-target_link_libraries(instax-filter-cpp PRIVATE ${OpenCV_LIBS})
-target_include_directories(instax-filter-cpp PRIVATE include ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(instax-core PUBLIC ${OpenCV_LIBS})
+target_include_directories(instax-core PUBLIC include ${OpenCV_INCLUDE_DIRS})
+target_compile_options(instax-core PRIVATE
+    $<$<CXX_COMPILER_ID:AppleClang,Clang,GNU>:-Wall;-Wextra;-Wpedantic>
+)
+
+add_executable(instax-filter-cpp
+    src/application.cpp
+    src/cli_options.cpp
+    src/main.cpp
+)
+target_link_libraries(instax-filter-cpp PRIVATE instax-core)
 target_compile_options(instax-filter-cpp PRIVATE
     $<$<CXX_COMPILER_ID:AppleClang,Clang,GNU>:-Wall;-Wextra;-Wpedantic>
 )
 
 get_filename_component(OPENCV_PREFIX_FROM_CONFIG "${OpenCV_DIR}/../../.." ABSOLUTE)
 if(EXISTS "${OPENCV_PREFIX_FROM_CONFIG}/share/opencv4/haarcascades/haarcascade_frontalface_alt2.xml")
-    target_compile_definitions(instax-filter-cpp PRIVATE
+    target_compile_definitions(instax-core PRIVATE
         INSTAX_CASCADE_DIR="${OPENCV_PREFIX_FROM_CONFIG}/share/opencv4/haarcascades"
     )
 elseif(APPLE)
@@ -35,7 +43,7 @@ elseif(APPLE)
         ERROR_QUIET
     )
     if(HOMEBREW_OPENCV_PREFIX)
-        target_compile_definitions(instax-filter-cpp PRIVATE
+        target_compile_definitions(instax-core PRIVATE
             INSTAX_CASCADE_DIR="${HOMEBREW_OPENCV_PREFIX}/share/opencv4/haarcascades"
         )
     endif()
