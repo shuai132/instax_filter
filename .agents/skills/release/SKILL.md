@@ -60,7 +60,7 @@ xcodegen generate --spec app/project.yml
 执行与版本变更相称的验证：
 
 ```bash
-(cd python && uv run pytest)
+(cd python && uv run python -m unittest discover -s tests)
 ```
 
 若本机已有 `cpp/.deps/opencv-app-install`，再执行：
