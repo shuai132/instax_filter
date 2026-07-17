@@ -15,5 +15,8 @@ __pycache__/
 *.tif
 *.tiff
 
+# Versioned application artwork
+!app/InstaxApp/Assets.xcassets/AppIcon.appiconset/*.png
+
 # Local scratch command
 /t.sh

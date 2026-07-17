@@ -16,6 +16,7 @@
 		4759E66C3D9979992BDA612A /* ImageIO.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E6E2F561F29BB1721ADF4D48 /* ImageIO.framework */; };
 		67BEA453FED62D16526D75F0 /* InstaxBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1410E7B85AB62AB9AC7ACA01 /* InstaxBridge.mm */; };
 		803F0D42CFCF89BA3C5EA803 /* OpenCV-LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = 2B53BA6CC95641DA8A417D9C /* OpenCV-LICENSE.txt */; };
+		922A5D476EC4C8690795202E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0FC20EDC95C93986C3F1E99F /* Assets.xcassets */; };
 		9FCC9F9FB7C30F47C98F86BB /* haarcascade_profileface.xml in Resources */ = {isa = PBXBuildFile; fileRef = CA3321C57FD778B76052A73C /* haarcascade_profileface.xml */; };
 		A932598AEA2E99ECB7B1F934 /* mode_config.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 67ADB4DD78DF8DE0CFF709C8 /* mode_config.cpp */; };
 		A989AC13490741EC4D798214 /* processing_engine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F23016EF7B499FDC6B8C1377 /* processing_engine.cpp */; };
@@ -37,6 +38,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0FC20EDC95C93986C3F1E99F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1410E7B85AB62AB9AC7ACA01 /* InstaxBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = InstaxBridge.mm; sourceTree = "<group>"; };
 		1FA3843AB9EE8932229BF68E /* ProcessingIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingIntegrationTests.swift; sourceTree = "<group>"; };
 		2B53BA6CC95641DA8A417D9C /* OpenCV-LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OpenCV-LICENSE.txt"; sourceTree = "<group>"; };
@@ -127,6 +129,7 @@
 			isa = PBXGroup;
 			children = (
 				FC7457F3E8FE4EC619033648 /* AppModel.swift */,
+				0FC20EDC95C93986C3F1E99F /* Assets.xcassets */,
 				A67D593D25056074464351F4 /* ContentView.swift */,
 				96638F5C8DE9985C7423C1DC /* InstaxApp.entitlements */,
 				4880A88A0D9396B95F06F9DC /* InstaxApp.swift */,
@@ -262,6 +265,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				922A5D476EC4C8690795202E /* Assets.xcassets in Resources */,
 				803F0D42CFCF89BA3C5EA803 /* OpenCV-LICENSE.txt in Resources */,
 				C973F9C1250830DB48447064 /* haarcascade_frontalface_alt2.xml in Resources */,
 				9FCC9F9FB7C30F47C98F86BB /* haarcascade_profileface.xml in Resources */,
