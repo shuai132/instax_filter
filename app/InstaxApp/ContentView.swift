@@ -108,13 +108,11 @@ struct ContentView: View {
         ZStack {
             Color(nsColor: .windowBackgroundColor)
             if let image = model.visibleImage {
-                GeometryReader { geometry in
-                    Image(decorative: image, scale: 1)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .padding(24)
-                }
+                Image(decorative: image, scale: 1)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 if model.isProcessing {
                     VStack(spacing: 8) {
                         ProgressView()
