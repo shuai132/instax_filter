@@ -54,19 +54,25 @@ jobs:
       - name: Package app
         run: |
           mkdir -p dist
+          staging_dir="$RUNNER_TEMP/instax-dmg"
+          mkdir -p "$staging_dir"
           ditto \
-            -c \
-            -k \
-            --sequesterRsrc \
-            --keepParent \
             app/build/Build/Products/Release/Instax.app \
-            dist/Instax-macOS-arm64.zip
+            "$staging_dir/Instax.app"
+          ln -s /Applications "$staging_dir/Applications"
+          hdiutil create \
+            -volname Instax \
+            -srcfolder "$staging_dir" \
+            -ov \
+            -format UDZO \
+            dist/Instax-macOS-arm64.dmg
+          hdiutil verify dist/Instax-macOS-arm64.dmg
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: Instax-macOS-arm64
-          path: dist/Instax-macOS-arm64.zip
+          path: dist/Instax-macOS-arm64.dmg
           retention-days: 7
 
   release:
@@ -91,12 +97,12 @@ jobs:
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload \
               "$GITHUB_REF_NAME" \
-              dist/Instax-macOS-arm64.zip \
+              dist/Instax-macOS-arm64.dmg \
               --clobber
           else
             gh release create \
               "$GITHUB_REF_NAME" \
-              dist/Instax-macOS-arm64.zip \
+              dist/Instax-macOS-arm64.dmg \
               --title "$GITHUB_REF_NAME" \
               --generate-notes
           fi
